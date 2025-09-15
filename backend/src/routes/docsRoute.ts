@@ -1,7 +1,7 @@
 import express from "express";
 import { apiReference } from "@scalar/express-api-reference";
 import swaggerJsDoc from "swagger-jsdoc";
-import getSwaggerOptions from "../docs/head.js";
+import getSwaggerOptions from "../docs/head.ts";
 
 export const getDocsRouter = () => {
     const router = express.Router();

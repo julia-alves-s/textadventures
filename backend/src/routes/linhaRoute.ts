@@ -1,7 +1,7 @@
 import express from "express";
-import { db } from "../config/drizzle.js";
-import { tableUsers } from "../db/userSchema.js";
-import { onLinha } from "../jogo/principal.js";
+import { db } from "../config/drizzle.ts";
+import { tableUsers } from "../db/userSchema.ts";
+import { onLinha } from "../jogo/principal.ts";
 
 export const getLinhaRouter = () => {
     const router = express.Router();

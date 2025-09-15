@@ -1,23 +1,15 @@
-import { Entidade } from "../../db/entidadeSchema.ts";
 import { Estado } from "../../db/estadoSchema.ts";
-import { Sala } from "../../db/salaSchema.ts";
-import { salasInicio } from "./inicio.js";
-
-export type Contexto = {
-    jogador: Entidade;
-    sala: Sala;
-    global: Sala;
-    escreva: (...str: unknown[]) => void;
-}
-
-export type SalaType = {
-    descricao: (ctx?: Contexto) => undefined | string | Promise<string | undefined>;
-    conexoes: { 
-        [direcao: string]: (ctx?: Contexto) => undefined | string | Promise<string | undefined>;
-    };
-    estadoInicial?: Estado;
-};
+import { Contexto, SalaType } from "../contexto.ts";
+import { salasInicio } from "./inicio.ts";
 
 export const salas: Record<string, SalaType> = {
     ...salasInicio
 };
+
+export const getSalaConfig = (salaId: string) => {
+    let salaConfig = salas[salaId];
+    if(!salaConfig) {
+        throw new Error(`Sala com id ${salaId} não existe na configuração do jogo!`);
+    }
+    return salaConfig;
+}

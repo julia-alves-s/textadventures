@@ -1,7 +1,7 @@
 // When deploying swagger on vercel on nodejs it does not show UI #8461
 // https://github.com/swagger-api/swagger-ui/issues/8461#issuecomment-2002404091
 
-import { linhaDocs } from "./linhaDocs.js";
+import { linhaDocs } from "./linhaDocs.ts";
 
 // https://stackoverflow.com/questions/72133185/deploy-an-express-server-that-uses-express-static-to-serve-a-build-folder-to-ver
 
