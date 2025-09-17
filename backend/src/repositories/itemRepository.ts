@@ -26,72 +26,57 @@ export class ItemRepository {
         return itens;
     }
 
-    static async moverItem(db: DatabaseType, itemId: string, quantidade: number, onde: { entidadeId?: string } | { salaId?: string } | { itemContainerId?: string }) {
-        const result = await db.transaction(async (tx) => {
-
-            const agora = new Date();
-            const localTipo = "entidadeId" in onde && onde.entidadeId ? "ENTIDADE" : "salaId" in onde && onde.salaId ? "SALA" : "itemContainerId" in onde && onde.itemContainerId ? "CONTAINER" : undefined;
-            const localId = ("entidadeId" in onde && onde.entidadeId) || ("salaId" in onde && onde.salaId) || ("itemContainerId" in onde && onde.itemContainerId);
-            if(!localTipo || !localId) {
-                throw new Error("Quer colocar onde? lugar nenhum?");
-            }
-
+    static async moverItem(db: DatabaseType, itemId: string, quantidade: number, localTipo: "ENTIDADE" | "SALA" | "CONTAINER", localId: string) {
+        return await db.transaction(async (tx: any) => {
             // 1. Retira o item de onde ele está agora (Não tem problema deixar 0 itens)
-            const [itemAtual] = await tx.update(tableItens).set({
-                quantidade: sql<number>`(${tableItens.quantidade} - ${quantidade})`,
-                atualizadoEm: agora
-            }).where(and(eq(tableItens.id, itemId), gte(tableItens.quantidade, quantidade)))
-            .returning();
-
-            if(!itemAtual) {
-                throw new Error("Item não existe ou não pode pegar tudo isso!");
-            }
+            const itemAtual = await this.removerItem(tx, itemId, quantidade);
 
             // 2. Tenta inserir o item no destino com onConflictUpdate
-            const [result] = await tx.insert(tableItens).values({
+            return await this.adicionarItem(tx, {
                 tipo: itemAtual.tipo,
                 quantidade: quantidade,
                 localTipo: localTipo,
                 localId: localId,
                 estado: itemAtual.estado,
-                criadoEm: itemAtual.criadoEm,
-                atualizadoEm: agora,
-            }).onConflictDoUpdate({
-                target: [tableItens.tipo, tableItens.localTipo, tableItens.localId],
-                set: {
-                    quantidade: sql<number>`(${tableItens.quantidade} + ${quantidade})`,
-                    atualizadoEm: agora
-                }
-            }).returning();
-
-            return result;
+                criadoEm: itemAtual.criadoEm
+            });
         });
-
-        return result;
     }
 
-    static async criarItem(db: DatabaseType, dados: {
-        tipo: string,
-        estado?: Estado
-    }, quantidade: number, onde: { entidadeId?: string } | { salaId?: string } | { itemContainerId?: string }) {
-        const agora = new Date();
-        const localTipo = "entidadeId" in onde && onde.entidadeId ? "ENTIDADE" : "salaId" in onde && onde.salaId ? "SALA" : "itemContainerId" in onde && onde.itemContainerId ? "CONTAINER" : undefined;
-        const localId = ("entidadeId" in onde && onde.entidadeId) || ("salaId" in onde && onde.salaId) || ("itemContainerId" in onde && onde.itemContainerId);
-        if(!localTipo || !localId) {
-            throw new Error("Quer colocar onde? lugar nenhum?");
-        }
+    static async removerItem(db: DatabaseType, itemId: string, quantidade: number) {
+        const [itemAtual] = await db.update(tableItens).set({
+            quantidade: sql<number>`(${tableItens.quantidade} - ${quantidade})`,
+            atualizadoEm: sql<Date>`NOW()`
+        }).where(and(eq(tableItens.id, itemId), gte(tableItens.quantidade, quantidade)))
+        .returning();
 
+        if(!itemAtual) {
+            throw new Error("Item não existe ou não pode pegar tudo isso!");
+        }
+        return itemAtual;
+    }
+
+    static async adicionarItem(db: DatabaseType, itemAtual: {
+        tipo: string,
+        estado?: Estado,
+        criadoEm?: Date,
+        quantidade: number,
+        localTipo: "ENTIDADE" | "SALA" | "CONTAINER", 
+        localId: string
+    }) {
         const [result] = await db.insert(tableItens).values({
-            tipo: dados.tipo,
-            quantidade: quantidade,
-            localTipo: localTipo,
-            localId: localId,
-            estado: dados.estado || {},
+            tipo: itemAtual.tipo,
+            quantidade: itemAtual.quantidade,
+            localTipo: itemAtual.localTipo,
+            localId: itemAtual.localId,
+            estado: itemAtual.estado,
+            criadoEm: sql<Date>`NOW()`,
+            atualizadoEm: sql<Date>`NOW()`,
         }).onConflictDoUpdate({
             target: [tableItens.tipo, tableItens.localTipo, tableItens.localId],
             set: {
-                quantidade: sql<number>`(${tableItens.quantidade} + ${quantidade})`,
-                atualizadoEm: agora
+                quantidade: sql<number>`(${tableItens.quantidade} + ${itemAtual.quantidade})`,
+                atualizadoEm: sql<Date>`NOW()`
             }
         }).returning();
 

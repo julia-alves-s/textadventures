@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { tableEntidades } from "../db/entidadeSchema.ts";
 import { type Estado } from "../db/estadoSchema.ts";
 import { type DatabaseType } from "../db/drizzle.ts";
@@ -10,7 +10,7 @@ export class EntidadeRepository {
         .set({ 
             salaId: dados.salaId,
             estado: dados.estado,
-            atualizadoEm: new Date() 
+            atualizadoEm: sql<Date>`NOW()`,
         })
         .where(eq(tableEntidades.id, entidadeId));
     }
@@ -19,7 +19,7 @@ export class EntidadeRepository {
         const result = await db.update(tableEntidades)
         .set({ 
             salaId: tableSalas.id,
-            atualizadoEm: new Date() 
+            atualizadoEm: sql<Date>`NOW()`,
         })
         .from(tableSalas)
         .where(and(eq(tableEntidades.id, entidadeId), eq(tableSalas.nome, salaNome)))

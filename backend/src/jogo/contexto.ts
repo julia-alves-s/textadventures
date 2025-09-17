@@ -32,6 +32,15 @@ export type SalaType = {
     estadoInicial?: Estado;
 };
 
+function ondeParaLocalId(onde: { entidadeId?: string } | { salaId?: string } | { itemContainerId?: string }) {
+    const localTipo = "entidadeId" in onde && onde.entidadeId ? "ENTIDADE" : "salaId" in onde && onde.salaId ? "SALA" : "itemContainerId" in onde && onde.itemContainerId ? "CONTAINER" : undefined;
+    const localId = ("entidadeId" in onde && onde.entidadeId) || ("salaId" in onde && onde.salaId) || ("itemContainerId" in onde && onde.itemContainerId);
+    if(!localTipo || !localId) {
+        throw new Error("Quer colocar onde? lugar nenhum?");
+    }
+    return { localTipo, localId } as const;
+}
+
 // Serve como service que interage com o banco de dados, e guarda o estado atual do jogo
 export class Contexto {
     jogador: Entidade;
@@ -156,15 +165,29 @@ export class Contexto {
         this._salvarSala = false;
     }
 
-    async moverItem(item: Item, quantidade: number, onde: { entidadeId?: string } | { salaId?: string } | { itemContainerId?: string }) {
-        await ItemRepository.moverItem(db, item.id, quantidade, onde);
+    async moverItem(item: Item, quantidade: number, onde: { entidadeId?: string } | { salaId?: string } | { itemContainerId?: string } | null) {
+        if(onde === null) {
+            // Descarta o item
+            await ItemRepository.removerItem(db, item.id, quantidade);
+        } else {
+            // Move o item para outro lugar
+            const { localTipo, localId } = ondeParaLocalId(onde);
+            await ItemRepository.moverItem(db, item.id, quantidade, localTipo, localId);
+        }
 
         this.mochila = null;
         this.itensNoChao = null;
     }
 
-    async criarItem(item: { tipo: string, estado?: Estado }, quantidade: number, onde: { entidadeId?: string } | { salaId?: string } | { itemContainerId?: string }) {
-        await ItemRepository.criarItem(db, item, quantidade, onde);
+    async criarItem(item: { tipo: string, estado?: Estado, quantidade: number}, onde: { entidadeId?: string } | { salaId?: string } | { itemContainerId?: string }) {
+        const { localTipo, localId } = ondeParaLocalId(onde);
+        await ItemRepository.adicionarItem(db, {
+            tipo: item.tipo,
+            quantidade: item.quantidade,
+            estado: item.estado || {},
+            localTipo: localTipo,
+            localId: localId
+        });
 
         this.mochila = null;
         this.itensNoChao = null;

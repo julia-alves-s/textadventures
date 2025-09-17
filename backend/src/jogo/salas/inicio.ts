@@ -11,7 +11,7 @@ export const salasInicio = {
                 let objetos = await ctx.getMochila();
                 const [ moedas ] = objetos.filter((o) => o.tipo === "Moedas");
                 if(moedas && moedas.quantidade > 0) {
-                    await ctx.moverItem(moedas, moedas.quantidade, { salaId: ctx.global.id });
+                    await ctx.moverItem(moedas, moedas.quantidade, null);
                     ctx.escrevaln("Você sobe a escada e abre o alçapão... 'EI! onde você pegou essas moedas?' **PUFT!**");
                     ctx.escrevaln("...");
                     ctx.escrevaln("Onde eu estou? você não lembra porque está nesse porão.");
@@ -88,7 +88,7 @@ export const salasInicio = {
                             "por volta de 200 AC, com inscrições de Alexandre o Grande"
                         );
                         
-                        await ctx.criarItem({ tipo: "Moedas" }, 100, { entidadeId: ctx.jogador.id });
+                        await ctx.criarItem({ tipo: "Moedas", quantidade: 100}, { entidadeId: ctx.jogador.id });
                         await ctx.alterarEstadoSala({ bauAberto: true });
                     } else if (pedras.quantidade > 2) {
                         ctx.escrevaln("Parece que tem pedras demais aqui, nem consegue ver o baú direito");
@@ -114,7 +114,7 @@ export const salasInicio = {
 
                 ctx.escrevaln("Você sobe nas pedras e fecha o baú, mas aí você escorrega e as pedras caem em um poço");
                 await ctx.alterarEstadoSala({ bauAberto: false });
-                await ctx.moverItem(pedras, 2, { salaId: ctx.global.id });
+                await ctx.moverItem(pedras, 2, null);
             }
         },
         estadoInicial: {

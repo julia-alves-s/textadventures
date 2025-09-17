@@ -2,6 +2,7 @@
 // https://orm.drizzle.team/docs/get-started/supabase-existing
 // Parece que supabase prefere o uso do "postgres" em vez do "pg"
 import "dotenv/config";
+import { sql } from "drizzle-orm";
 import { PgDatabase, PgTransaction } from "drizzle-orm/pg-core";
 
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -15,6 +16,10 @@ const client = postgres(connectionString, { prepare: false });
 export const db = drizzle({
     client,
     // logger: process.env.DEBUGLOG === "true" ? true : false,
+});
+
+await db.execute(sql`SET TIME ZONE 'UTC';`).then(() => {
+    console.log("Database connected and timezone set to UTC");
 });
 
 export type DatabaseType = typeof db;

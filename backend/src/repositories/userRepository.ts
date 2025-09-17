@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { DatabaseType } from "../db/drizzle.ts";
 import { tableUsers, type User } from "../db/userSchema.ts";
 import { tableEntidades } from "../db/entidadeSchema.ts";
@@ -30,7 +30,9 @@ export class UserRepository {
                 categoria: "JOGADOR",
                 tipo: "JOGADOR",
                 salaId: salaInicial.id,
-                estado: { vivo: 1 }
+                estado: { vivo: 1 },
+                criadoEm: sql<Date>`NOW()`,
+                atualizadoEm: sql<Date>`NOW()`,
             }).returning();
 
             return {

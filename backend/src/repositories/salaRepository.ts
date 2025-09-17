@@ -6,12 +6,13 @@ import { type Estado } from "../db/estadoSchema.ts";
 import { type Item, tableItens } from "../db/itemSchema.ts";
 import { type DatabaseType } from "../db/drizzle.ts";
 import { RevokeSessionError } from "../middlewares/authMiddleware.ts";
+import { mapArrayWithTable } from "../db/utils.ts";
 
 export class SalaRepository {
     static async dadosIniciaisJogador(db: DatabaseType, username: string) {
         const itensSubquery = db.select({
             salaId: tableItens.localId,
-            sala_itens: sql<Item[]>`COALESCE(json_agg(${tableItens}.*), '[]'::json)`.as("sala_itens"),
+            sala_itens: sql`COALESCE(jsonb_agg(${tableItens}.*), '[]'::jsonb)`.mapWith(mapArrayWithTable(tableItens)).as("sala_itens"),
             })
             .from(tableItens)
             .where(and(eq(tableItens.localTipo, "SALA"), gte(tableItens.quantidade, 1)))
@@ -20,7 +21,7 @@ export class SalaRepository {
 
         const mochilaSubquery = db.select({
             entidadeId: tableItens.localId,
-            mochila_itens: sql<Item[]>`COALESCE(json_agg(${tableItens}.*), '[]'::json)`.as("mochila_itens"),
+            mochila_itens: sql`COALESCE(jsonb_agg(${tableItens}.*), '[]'::jsonb)`.mapWith(mapArrayWithTable(tableItens)).as("mochila_itens"),
             })
             .from(tableItens)
             .where(and(eq(tableItens.localTipo, "ENTIDADE"), gte(tableItens.quantidade, 1)))
@@ -29,7 +30,7 @@ export class SalaRepository {
 
         const entidadeSubquery = db.select({
             entidadeSalaId: tableEntidades.salaId,
-            entidades: sql<Entidade[]>`COALESCE(json_agg(${tableEntidades}.*), '[]'::json)`.as("entidades"),
+            entidades: sql`COALESCE(jsonb_agg(${tableEntidades}.*), '[]'::jsonb)`.mapWith(mapArrayWithTable(tableEntidades)).as("entidades"),
             })
             .from(tableEntidades)
             .groupBy(tableEntidades.salaId)
@@ -52,7 +53,7 @@ export class SalaRepository {
             .leftJoin(entidadeSubquery, eq(entidadeSubquery.entidadeSalaId, tableSalas.id))
             .where(eq(tableEntidades.username, username))
             .limit(1);
-    
+            
         if(!result || result.length === 0 || !result[0]) {
             throw new RevokeSessionError("Usuário não existe!");
         }
@@ -94,7 +95,7 @@ export class SalaRepository {
         await db.update(tableSalas)
         .set({ 
             estado: dados.estado,
-            atualizadoEm: new Date() 
+            atualizadoEm: sql<Date>`NOW()`, 
         })
         .where(eq(tableSalas.id, salaId));
     }

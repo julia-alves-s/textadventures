@@ -6,7 +6,7 @@ export const tableSalas = pgTable('salas', {
     // ID da sala que corresponde ao seu código (ex: "sala_do_trono")
     nome: varchar('nome', { length: 100 }).unique().notNull(),
     
-    atualizadoEm: timestamp('atualizado_em').defaultNow().notNull(),
+    atualizadoEm: timestamp('atualizado_em', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
 
     // JSONB para armazenar estados mutáveis da sala
     // Ex: { "porta_trancada": true, "alavanca_puxada": false }

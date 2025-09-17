@@ -1,5 +1,8 @@
 FROM postgres
 
+# Install pg_cron extension github.com/citusdata/pg_cron
+RUN apt-get -y install postgresql-16-cron
+
 # Create a .sql to initialize the database in postgresql
 COPY <<-EOF /docker-entrypoint-initdb.d/seed.sql
     CREATE DATABASE "text_adventures";

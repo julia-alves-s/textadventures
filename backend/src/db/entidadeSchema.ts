@@ -31,8 +31,8 @@ export const tableEntidades = pgTable('entidades', {
     // Se a entidade for um jogador, aqui está o link para sua conta
     username: varchar('username', { length: 50 }).references(() => tableUsers.username, { onDelete: 'restrict' }).unique(),
 
-    criadoEm: timestamp('criado_em').defaultNow().notNull(),
-    atualizadoEm: timestamp('atualizado_em').defaultNow().notNull(),
+    criadoEm: timestamp('criado_em', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+    atualizadoEm: timestamp('atualizado_em', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
 
     // Atributos dinâmicos: vida, mana, status, etc.
     // Ex: { "vida": 85, "vida_max": 100, "status": ["envenenado"] }

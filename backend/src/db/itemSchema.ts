@@ -16,12 +16,14 @@ export const tableItens = pgTable('itens', {
 
     // Quantidade desse item (para itens empilháveis) Sempre >= 1
     quantidade: integer('quantidade').default(1).notNull(),
-
+    // Quando é um item inicial (spawn) de uma sala. valor que será restaurado.
+    quantidadeInicial: integer('quantidade_inicial'),
+    
     localTipo: enumLocalTipo('local_tipo').notNull(),
     localId: uuid('local_id').notNull(),
 
-    criadoEm: timestamp('criado_em').defaultNow().notNull(),
-    atualizadoEm: timestamp('atualizado_em').defaultNow().notNull(),
+    criadoEm: timestamp('criado_em', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+    atualizadoEm: timestamp('atualizado_em', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
 
     // Atributos dinâmicos: durabilidade, cargas, etc.
     // Ex: { "durabilidade": 82 }

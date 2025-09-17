@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 
 // Assume que acabou de dar drizzle kit push, então as tabelas estão criadas mas vazias
+// OU, se já tiver dados, não insere duplicados
 try {
 
     const insertSalas: typeof tableSalas.$inferInsert[] = [];
@@ -30,6 +31,7 @@ try {
             target: tableSalas.nome,
             set: {
                 estado: sql`EXCLUDED.estado`,
+                atualizadoEm: sql`NOW()`,
             }
         }).returning({ id: tableSalas.id, nome: tableSalas.nome });
 
@@ -43,6 +45,7 @@ try {
                     id: randomUUID(),
                     tipo: item.tipo,
                     quantidade: item.quantidade,
+                    quantidadeInicial: item.quantidade,
                     localTipo: "SALA",
                     localId: sala.id,
                     estado: item.estadoInicial || {}
