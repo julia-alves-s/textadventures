@@ -1,0 +1,21 @@
+FROM postgres:17
+
+# Install pg_cron extension github.com/citusdata/pg_cron
+# https://github.com/ramazanpolat/postgres_cron/blob/master/Dockerfile
+# RUN apt-get update && apt-get -y install postgresql-16-cron && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get -y install git build-essential postgresql-server-dev-17 \
+    && git clone https://github.com/citusdata/pg_cron.git && cd pg_cron && make && make install && cd / && rm -rf /pg_cron \
+    && apt-get -y remove git build-essential postgresql-server-dev-17 \
+    && apt-get -y --purge autoremove \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Required to load pg_cron background worker on start-up
+RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/share/postgresql/postgresql.conf.sample
+RUN echo "cron.database_name = 'text_adventures'" >> /usr/share/postgresql/postgresql.conf.sample
+
+# Create a .sql to initialize the database in postgresql
+COPY <<-EOF /docker-entrypoint-initdb.d/seed.sql
+    CREATE DATABASE "text_adventures";
+EOF

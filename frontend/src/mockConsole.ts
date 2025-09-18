@@ -4,18 +4,18 @@ export const console = { log: termPrint, error: termPrint, clear: termClear };
 
 export const rl = {
     close: () => {},
-    question: (str, callback) => {
+    question: (str: string, callback: (v: unknown) => undefined) => {
         termPrompt(str).then((v) => callback(v));
     }
 };
 
 export const process = {
     stdout: {
-        write: (str) => {
+        write: (str: unknown) => {
             termPrintRaw(str);
         }
     },
-    exit: (code) => {
+    exit: (code: unknown) => {
         throw new Error("Encerrou com código:"+code);
     }
 };

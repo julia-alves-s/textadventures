@@ -30,6 +30,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+
+    env:
+      VITE_API_URL: ${{ vars.VITE_API_URL }}
     # Define um diretório de trabalho padrão para os comandos `run`
     defaults:
       run:

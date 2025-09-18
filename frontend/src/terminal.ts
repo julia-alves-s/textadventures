@@ -11,7 +11,7 @@ const term = new Terminal({
 const fitAddon = new FitAddon();
 term.loadAddon(fitAddon);
 
-term.open(document.getElementById('xterm-container'));
+term.open(document.getElementById('xterm-container')!);
 
 // Make the terminal's size and geometry fit the size of #terminal-container
 fitAddon.fit();
@@ -22,7 +22,7 @@ export function _prompt() {
     term.write('\r\n> ');
 }
 
-export function termPrint(...str) {
+export function termPrint(...str: unknown[]) {
     for(let s of str) {
         if(!s) continue;
         term.write((""+s).replaceAll("\n","\r\n")+" ");
@@ -30,7 +30,7 @@ export function termPrint(...str) {
     term.writeln(" ");
 }
 
-export function termPrintRaw(str) {
+export function termPrintRaw(str: unknown) {
     term.write((""+str)?.replaceAll("\n","\r\n") || "");
 }
 
@@ -38,32 +38,45 @@ export function termClear() {
     term.clear();
 }
 
-let waitingPrompt = null;
-export function prompt(...str) {
+let waitingPrompt: ((input: string | Error) => void) | null = null;
+export function prompt(...str: unknown[]): Promise<string> {
     command = '';
     const last = str.pop() || "> ";
     termPrint(...str);
     
-    term.write(last);
-    return new Promise((resolve, reject) => {
-        waitingPrompt = (input) => {
+    term.write(""+last);
+    return new Promise<string>((resolve, reject) => {
+        waitingPrompt = (input: string | Error) => {
             waitingPrompt = null;
             if(input instanceof Error) {
                 reject(input);
+            } else {
+                resolve(input);
             }
-            resolve(input);
         };
     });
 }
 
-let command = '';
-let commands = {};
+let passwordMode = false;
+export async function passwordPrompt(...str: unknown[]) {
+    passwordMode = true;
+    const result = await prompt(...str);
+    passwordMode = false;
+    return result;
+}
 
-export function addCommand(cmd, config) {
+let command = '';
+type ComandConfig = {
+    f: (...args: string[]) => void | Promise<void>,
+    help?: string
+}
+let commands: Record<string, ComandConfig> = {};
+
+export function addCommand(cmd: string, config: ComandConfig) {
     commands[cmd] = config;
 }
 
-function onInput(term, text) {
+function onInput(term: Terminal, text: string) {
     text = text?.trim() || "";
 
     if(waitingPrompt) {
@@ -97,13 +110,13 @@ function onInput(term, text) {
 }
 
 function runFakeTerminal() {
-    if (term._initialized) {
+    if ((term as any)._initialized) {
         return;
     }
 
-    term._initialized = true;
+    (term as any)._initialized = true;
 
-    term.prompt = () => {
+    (term as any).prompt = () => {
         term.write('\r\n$ ');
     };
 
@@ -122,7 +135,7 @@ function runFakeTerminal() {
                 break;
             case '\u007F': // Backspace (DEL)
                 // Do not delete the prompt
-                if (term._core.buffer.x > 2) {
+                if ((term as any)._core.buffer.x > 2) {
                     term.write('\b \b');
                     if (command.length > 0) {
                         command = command.slice(0, command.length - 1);
@@ -132,7 +145,7 @@ function runFakeTerminal() {
             default: // Print all other characters for demo
                 if (e >= String.fromCharCode(0x20) && e <= String.fromCharCode(0x7E) || e >= '\u00a0') {
                     command += e;
-                    term.write(e);
+                    term.write(passwordMode ? "*" : e);
                 }
         }
     });

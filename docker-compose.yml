@@ -1,0 +1,50 @@
+services:
+  textadventures-postgres:
+    restart: unless-stopped
+    container_name: textadventures-postgres
+    build:
+      context: ./
+      dockerfile: ./Dockerfile.postgres
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "12345678"
+      POSTGRES_DB: "postgres"
+    ports:
+      - "5432:5432"
+    volumes:
+      - textadventures-postgres-data:/var/lib/postgresql/data
+
+  textadventures-frontend:
+    restart: unless-stopped
+    container_name: textadventures-frontend
+    build: 
+      context: ./
+      dockerfile: ./frontend/Dockerfile
+      args:
+        - API_URL_SERVER=http://textadventures-backend:3001
+        - NEXT_PUBLIC_API_URL_CLIENT=http://localhost:3001
+    ports:
+      - 3000:3000
+    environment:
+      TZ: "America/Porto_Velho"
+      LANG: "pt_BR.UTF-8"
+      PORT: "3000"
+
+  textadventures-backend:
+    restart: unless-stopped
+    container_name: textadventures-backend
+    build:
+      context: ./
+      dockerfile: ./backend/Dockerfile
+    ports:
+      - 3001:3001
+    environment:
+      TZ: "America/Porto_Velho"
+      LANG: "pt_BR.UTF-8"
+      PORT: "3001"
+      DEBUGLOG: "true"
+      DATABASE_URL: "postgres://postgres:12345678@textadventures-postgres:5432/text_adventures"
+      DOCS_API_URL: "http://localhost:3000"
+
+volumes:
+  textadventures-postgres-data:

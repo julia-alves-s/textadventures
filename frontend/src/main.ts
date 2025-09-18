@@ -1,3 +1,4 @@
+import { principal } from './jogo/principal';
 import { assombrada } from './jogos/assombrada';
 import { aveltor } from './jogos/aveltor';
 import { chave } from './jogos/chave';
@@ -11,10 +12,23 @@ import { sonhos } from './jogos/sonhos';
 import { vereth } from './jogos/vereth';
 import { viajante } from './jogos/viajante';
 import { zafiir } from './jogos/zafiir';
+// @ts-ignore
 import './style.css';
 import { _prompt, addCommand, prompt, termClear, termPrint } from './terminal';
+import { fetchClient } from './utils/fetchApi';
 
-const listaJogos = {
+type ListaJogo = {
+    descricao: string[];
+    autores: string[];
+    f: () => Promise<void>;
+};
+
+const listaJogos: Record<string, ListaJogo> = {
+    online: {
+        autores: ["Erick Leonardo Weil"],  
+        descricao: ["Um mini-MMO online, mas é tudo em texto."],
+        f: principal
+    },
     labirinto: {
         autores: ["Lucas Coimbra Santi"],
         descricao: [
@@ -33,7 +47,7 @@ const listaJogos = {
     aveltor: {
         autores: ["Pedro Henrique", "Kaua Fernandes"],
         descricao: [
-        ,"Um herói anónimo, com o destino do mundo nos ombros, inicia a sua jornada na pacata cidade de Eldrun, um pequeno ponto de luz no vasto e antigo continente de Aveltor. Forjado numa guerra esquecida entre deuses da luz e das trevas, este mundo agora vive uma paz frágil."
+         "Um herói anónimo, com o destino do mundo nos ombros, inicia a sua jornada na pacata cidade de Eldrun, um pequeno ponto de luz no vasto e antigo continente de Aveltor. Forjado numa guerra esquecida entre deuses da luz e das trevas, este mundo agora vive uma paz frágil."
         ,""
         ,"Este continente é um verdadeiro labirinto de cidades movimentadas, florestas densas, rios traiçoeiros e templos esquecidos, cada um com sua própria história e caminhos que levam a novos desafios e segredos. O jogador, nosso herói, deve usar a sua astúcia e coragem para navegar por este mundo, seguindo os movimentos cardeais (N, S, L, O) e interagindo com o cenário através de comandos específicos."
         ,""
@@ -89,7 +103,7 @@ const listaJogos = {
     },
 
     mansao: {
-        descricao: ["Festa na Mansão",
+        descricao: ["Festa na Mansão"
         ,"Como Jogar"
         ,"Você foi convidado para uma festa misteriosa nos fundos de uma mansão... mas algo está fora do normal."
         ,"Use W, A, S, D para se mover entre salas."
@@ -106,7 +120,7 @@ const listaJogos = {
 
     assombrada: {
         descricao: [
-        ,"Bem-vindo à Casa Assombrada!"
+         "Bem-vindo à Casa Assombrada!"
         ,"Você acordou em frente a um casarão abandonado sem saber como chegou aqui. O ar é frio e um sentimento ruim aperta seu peito. Sua única chance é entrar, explorar os cômodos sombrios e encontrar uma maneira de escapar."
         ,"Procure por itens, resolva os quebra-cabeças e, o mais importante, tente não se perder na escuridão. A casa tem muitos segredos, e talvez nem todos queiram que você saia."
         ,"Você tem coragem de descobrir a verdade e encontrar a saída?"
@@ -117,7 +131,7 @@ const listaJogos = {
 
     viajante: {
         descricao: [
-        ,"O Tempo do Viajante (um jogo no terminal). "
+         "O Tempo do Viajante (um jogo no terminal). "
         ,""
         ,"Entre numa história na qual ocorre um problema no seu caminhão, e o seu objetivo é trazer de volta o funcionamento de seu veículo para retornar ao seu trabalho normal como entregador de produtos. Mas, para isso, será necessário várias caminhadas, interagir com pessoas e efeituar ações para realizar essa sua meta temporária."
         ,""
@@ -146,7 +160,7 @@ const listaJogos = {
 
     scaperoom: {
         descricao: [
-        ,"Lucineia e eu fizemos este código que é um Labirinto."
+         "Lucineia e eu fizemos este código que é um Labirinto."
         ,"A ideia é que você deve andar até achar o fim do labirinto e ver o que te aguarda!"
         ,"Aceita essa aventura? "
         ,"Para iniciar use: node scapeRoom.js no terminal e siga as orientações."
@@ -165,7 +179,7 @@ const listaJogos = {
 
     floresta: {
         descricao: [
-        ,"Você está preso em uma floresta misteriosa e deve encontrar o caminho até a saída. Para vencer, você precisa pensar estrategicamente e usar itens no momento certo."
+         "Você está preso em uma floresta misteriosa e deve encontrar o caminho até a saída. Para vencer, você precisa pensar estrategicamente e usar itens no momento certo."
         ,"Use as letras N (norte), S (sul), L (leste) e O (oeste) para se mover."
         ,""
         ,"Use “pegar” quando encontrar um item visível."
@@ -180,6 +194,20 @@ const listaJogos = {
         f: floresta
     }
 };
+
+function printarJogos() {
+    const [principal, ...outros] = Object.keys(listaJogos);
+    termPrint(
+        'Insira "jogar" seguido do nome de um jogo:\n\n',
+        '[Jogo MMO online]\n',
+        `${principal} - ${listaJogos[principal].autores.join(", ")}\n`,
+        '\n',
+        '[Outros jogos, offline]\n',
+        ...outros.map((k) => {
+            return `${k} - ${listaJogos[k].autores.join(", ")} \n`;
+        })
+    );
+}
 
 addCommand("jogar", {
     f: async (qual) => {
@@ -207,21 +235,24 @@ addCommand("jogar", {
 
 addCommand("ajuda", {
     f: async () => {
-        termPrint(
-            'Para jogar, insira "jogar" seguido do nome de um jogo, da lista abaixo:\n',
-            '\n',
-            ...Object.keys(listaJogos).map((k) => {
-                return `${k} - ${listaJogos[k].autores.join(", ")} \n`;
-            })
-        );
+        printarJogos();
     }
 });
 
+try {
+    const { resposta, sala, jogador } = await fetchClient.salaOlhar();
+    termPrint("Olá novamente", jogador.username);
+    
+    await principal();
+} catch(e) {
+    console.error(e);
+    termPrint("Parece que você não está logado.");
+    termPrint("Use o comando 'jogar online' para fazer login ou criar uma conta. \n\n");
+}
+
 termPrint(
-    'Seja bem vindo! para começar sua aventura, insira "jogar" seguido do nome de um jogo:\n',
-    '\n',
-    ...Object.keys(listaJogos).map((k) => {
-        return `${k} - ${listaJogos[k].autores.join(", ")} \n`;
-    })
+    'Seja bem vindo! comece já a sua aventura!'
 );
+printarJogos();
+
 _prompt();
