@@ -30,12 +30,15 @@ export const salasInicio = {
         },
         itensIniciais: [{
             nome: "Papel",
-            quantidade: 3
-        },{
-            nome: "Papel",
             quantidade: 1,
             estadoInicial: {
                 texto: "??/??/????: Quantos dias estou aqui? Lembrar: O que tem do outro lado daquela ponte de cordas?"
+            }
+        },{
+            nome: "Papel",
+            quantidade: 5,
+            estadoInicial: {
+                texto: ""
             }
         }],
         

@@ -1,3 +1,4 @@
+import anyAscii from "any-ascii";
 import { passwordPrompt, prompt, termPrint } from "../terminal";
 import { APIError, fetchClient, type RespostaEntidades, type RespostaItens, type RespostaSala, type RespostaSituacao } from "../utils/fetchApi";
 
@@ -124,9 +125,11 @@ export const principal = async () => {
             let { sala, jogador } = situacao;
 
             const comando = (await prompt(jogador.username+"> ")).trim().toUpperCase();
-            let partes = comando.split(" ").filter(p => p.trim().length > 0);
+            let partes = comando.split(" ").map(p => anyAscii(p.replaceAll(/[\r\n\t]/g," ").trim())).filter(p => {
+                return p.length > 0
+            });
 
-            const acao = partes.length > 0 ? partes[0] : undefined;
+            let acao = partes.length > 0 ? partes[0] : undefined;
             const args = partes.slice(1);
 
             // A FAZER: processar isso melhor kk
@@ -162,12 +165,35 @@ export const principal = async () => {
                 }
                 const itemId = jogador.mochila?.find(i => i.nome.toUpperCase() === args[0])?.id;
                 if(!itemId) {
-                    termPrint("Não tem isso aqui.");
+                    termPrint("Você não tem isso.");
                     continue;
                 }
 
                 situacao = descreverTudo(await fetchClient.itemLargar(itemId, quantidade), situacao);
+            } else if (acao === "ESCREVER" || acao === "LER") { // Melhorar isso...
+                let itemId = jogador.mochila?.find(i => i.nome.toUpperCase() === args[0])?.id;
+                if(!itemId) {
+                    itemId = sala.itens?.find(i => i.nome.toUpperCase() === args[0])?.id;
+                    if(!itemId) {
+                        termPrint("Não tem isso aqui e nem você.");
+                        continue;
+                    }
+                }
+
+                if(acao === "ESCREVER") {
+                    const texto = args.slice(1).join(" ") || "";
+                    situacao = descreverTudo(await fetchClient.itemAcao(itemId, acao, { texto }), situacao);
+                } else {
+                    situacao = descreverTudo(await fetchClient.itemAcao(itemId, acao), situacao);
+                }
             } else {
+                switch(acao) {
+                    case "NORTE": acao = "N"; break;
+                    case "SUL": acao = "S"; break;
+                    case "LESTE": acao = "L"; break;
+                    case "OESTE": acao = "O"; break;
+                }
+
                 situacao = descreverTudo(await fetchClient.salaMover(acao), situacao);
             }
         } catch(err) {

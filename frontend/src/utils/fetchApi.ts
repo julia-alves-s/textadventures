@@ -145,6 +145,7 @@ export const fetchClient = {
     salaMover: (direcao: string) => doFetchApi<RespostaSituacao>("post", "/sala/mover", { body: { direcao } }),
     itemPegar: (item: string, quantidade?: number) => doFetchApi<RespostaSituacao>("post", "/item/pegar", { body: { item, quantidade } }),
     itemLargar: (item: string, quantidade?: number) => doFetchApi<RespostaSituacao>("post", "/item/largar", { body: { item, quantidade } }),
+    itemAcao: (item: string, acao: string, extra?: object) => doFetchApi<RespostaSituacao>("post", "/item/acao", { body: { item, acao, extra } }),
 };
 
 // */

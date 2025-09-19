@@ -16,10 +16,13 @@ const _salas = {
     }
 } as const;
 
-type CallbackOrValue<T, U> = T | ((ctx: Contexto, info: U) => T | Promise<T>);
+type CallbackOrValue<T, U> = T | ((ctx: Contexto, info: U, extra?: Estado | null) => T | Promise<T>);
 
 export type ItemType<ITEM = string> = {
     descricao: CallbackOrValue<string | void, ItemInfo>;
+    acoes?: CallbackOrValue<{ 
+        [acao: string]: CallbackOrValue<string | void, ItemInfo>;
+    }, ItemInfo>;
     itensIniciais?: {
         nome: ITEM;
         quantidade: number;
@@ -31,6 +34,9 @@ export type SalaType<SALA = string, ITEM = string> = {
     descricao: CallbackOrValue<string | void, SalaInfo>;
     conexoes: CallbackOrValue<{ 
         [direcao: string]: CallbackOrValue<SALA | void, SalaInfo>;
+    }, SalaInfo>;
+    acoes?: CallbackOrValue<{ 
+        [acao: string]: CallbackOrValue<string | void, SalaInfo>;
     }, SalaInfo>;
     itensIniciais?: readonly {
         nome: ITEM;
@@ -62,9 +68,9 @@ export const getSalaConfig = (salaId: SalaNome) => {
     return salaConfig;
 }
 
-export const execCallbackOrValue = async <T, U>(callbackOrValue: CallbackOrValue<T, U>, ctx: Contexto, info: U) => {
+export const execCallbackOrValue = async <T, U>(callbackOrValue: CallbackOrValue<T, U>, ctx: Contexto, info: U, extra?: Estado | null) => {
     if(typeof callbackOrValue === "function") {
-        return await (callbackOrValue as (ctx: Contexto, info: U) => T | Promise<T>)(ctx, info);
+        return await (callbackOrValue as (ctx: Contexto, info: U, extra?: Estado | null) => T | Promise<T>)(ctx, info, extra);
     } else {
         return callbackOrValue;
     }

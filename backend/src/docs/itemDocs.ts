@@ -11,7 +11,7 @@ export const itemDocs = {
                 body: z.object({
                     item: z.uuid().meta({
                         description: "ID do item a ser pego",
-                        example: "pedra",
+                        example: "UUID",
                     }),
                     quantidade: z.number().min(1).optional().meta({
                         description: "Quantidade do item a ser pego (para itens empilháveis). Padrão é 1",
@@ -30,12 +30,35 @@ export const itemDocs = {
                 body: z.object({
                     item: z.uuid().meta({
                         description: "ID do item a ser largado da mochila",
-                        example: "pedra",
+                        example: "UUID",
                     }),
                     quantidade: z.number().min(1).optional().meta({
                         description: "Quantidade do item a ser largado (para itens empilháveis). Padrão é 1",
                         example: 1,
                     }).default(1),
+                }),
+                response: respostaSituacao
+            }
+        }
+    },
+    "/item/acao": {
+        post: {
+            summary: "Realiza uma ação com um item",
+            description: "Realiza uma ação específica com um item que está na mochila ou no chão",
+            schema: {
+                body: z.object({
+                    item: z.uuid().meta({
+                        description: "ID do item com o qual realizar a ação",
+                        example: "UUID",
+                    }),
+                    acao: z.string().meta({
+                        description: "Ação a ser realizada",
+                        example: "usar",
+                    }),
+                    extra: z.record(z.string(), z.any()).optional().meta({
+                        description: "Dados extras para a ação, se necessário",
+                        example: { chave: "valor" },
+                    }),
                 }),
                 response: respostaSituacao
             }

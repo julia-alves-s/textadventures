@@ -1,5 +1,5 @@
 import type { Contexto } from "../contexto.ts";
-import type { ItemInfo } from "../types.ts";
+import type { Estado, ItemInfo } from "../types.ts";
 
 export const itensInicio = {
     Pedra: {
@@ -32,9 +32,30 @@ export const itensInicio = {
     Papel: {
         descricao: (ctx: Contexto, info: ItemInfo) => {
             if(info.estado?.texto && typeof info.estado.texto === "string") {
-                return "Pedaço de papel, está escrito: \n" + info.estado.texto;
+                if(info.estado.texto.length > 32)
+                    return "Pedaço de papel, escrito: "+info.estado.texto.substring(0,32)+"...";
+                else
+                    return "Pedaço de papel, escrito: "+info.estado.texto+"";
             } else {
                 return "Pedaço de papel em branco."
+            }
+        },
+        acoes: {
+            "LER": (ctx: Contexto, info: ItemInfo) => {
+                if(info.estado?.texto && typeof info.estado.texto === "string") {
+                    return "No papel está escrito: \n" + info.estado.texto;
+                } else {
+                    return "O papel está em branco.";
+                }
+            },
+            "ESCREVER": async (ctx: Contexto, info: ItemInfo, extra?: Estado | null) => {
+                let txt = "";
+                if(extra?.texto && typeof extra.texto === "string") {
+                    txt = extra.texto.replaceAll(/[^\x20-\x7E]+/g,"").substring(0,1024);
+                }
+
+                await ctx.moverItem(info as any, { ondeId: info.ondeId, quantidade: 1, estado: { texto: txt } });
+                return "Você escreve no papel.";
             }
         }
     }
