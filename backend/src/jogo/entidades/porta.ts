@@ -18,12 +18,12 @@ export class EntidadePorta extends EntidadeBase {
     async _acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): Promise<AcoesCallbackResult> {
         if(this.estaAberto()) {
             return {
-                "FECHAR": async () => this.fechar(ctx),
+                "FECHAR": async () => this.fechar(ctx, extra),
                 ...(await super._acoes(ctx, extra)),
             };
         } else {
             return {
-                "ABRIR": async () => this.abrir(ctx),
+                "ABRIR": async () => this.abrir(ctx, extra),
                 ...(await super._acoes(ctx, extra)),
             };
         }
@@ -32,11 +32,11 @@ export class EntidadePorta extends EntidadeBase {
     estaAberto() {
         return this.entidade.estado?.aberto === true;
     }
-    async abrir(ctx: Contexto) {
+    async abrir(ctx: Contexto, extra?: AcaoExtraPopulado | null) {
         await ctx.alterarEntidade(this, { estado: { aberto: true }});
         return "Você abre a porta.";
     }
-    async fechar(ctx: Contexto) {
+    async fechar(ctx: Contexto, extra?: AcaoExtraPopulado | null) {
         await ctx.alterarEntidade(this, { estado: { aberto: false }});
         return "Você fecha a porta.";
     }

@@ -5,8 +5,8 @@ import { EntidadePorta } from "../entidades/porta.ts";
 import type { ItemBase } from "../itens/base.ts";
 import { itensPadrao } from "../itens/inicio.ts";
 import type { Estado, MaybePromise } from "../types.ts";
-import { SalaBase, type AcoesCallbackResult, type ItemInicial } from "./base.ts";
-import { salasClareira } from "./clareira.ts";
+import { SalaBase, type AcaoExtraPopulado, type AcoesCallbackResult, type ItemInicial } from "./base.ts";
+import { BuracoNaParede } from "./clareira.ts";
 
 class Quarto extends SalaBase {
     static nome = "Quarto";
@@ -20,37 +20,76 @@ class Quarto extends SalaBase {
         item: itensPadrao.Papel, 
         quantidade: 1,
         estadoInicial: {
-            texto: "??/??/????: Quantos dias estou aqui? Lembrar: O que tem do outro lado daquela ponte de cordas?"
+            texto: "Segunda feira: Ninguém sabe que estou aqui, como eu vou fazer agora?"
         }
     }];
     static estadoInicial = (): Estado => ({ luz: true });
 
     descricao(ctx: Contexto) {
-        return "Você está em um quarto simples sem janelas, na parede há vários riscos 一 二 三, há uma cama, uma mesa com um candelabro e uma porta ao sul";
+        return "Você está em um quarto simples sem janelas, na parede há vários riscos, há uma cama, uma mesa com um candelabro e uma porta ao sul";
     }
 
     acoes(ctx: Contexto): AcoesCallbackResult {
         return {
-            "S": Inicio,
+            "S": SalaInicio,
             "DORMIR": async () => {
-                if(!ctx.jogador.terminouTutorial()) {
-                    const moedas = ctx.jogador.obterItensPorNome(itensPadrao.Moedas).at(0);
-                    if(moedas && moedas.item.quantidade >= 100) {
-                        ctx.escrevaln("Você deita na cama e dorme por um tempo...");
-                        ctx.escrevaln("** BAM! (som de pedras caindo) **");
-                        ctx.escrevaln();
-                        ctx.escrevaln("Um barulho alto te acorda, parece que algo quebrou na sala ao lado.");
-                        await ctx.alterarEntidade(ctx.jogador, { estado: { terminouTutorial: true } });
-                        return;
-                    }
-                }
-                return "Você deita na cama e dorme por um tempo, mas nada mudou quando acorda.";
+                if(Math.random() < 0.25) {
+                    return "Você deita na cama e dorme por um tempo, mas nada mudou quando acorda.";
+                } else if(Math.random() < 0.25) {
+                    return "Você deita na cama e tenta dormir, mas não consegue...";
+                } else if(Math.random() < 0.25) {
+                    return "Você tenta dormir, mas a falta de ventilação não ajuda...";
+                } else if(Math.random() < 0.5) {
+                    return "Você deita e dorme... **Zzzzzzz** corda... poço... chave... **Zzzzzzz**";
+                } else {
+                    ctx.escrevaln("Você deita e dorme... **Zzzzzzz**");
+                    ctx.escrevaln("...");
+                    return Labirinto9;
+                }                
             }
         };
     }
 }
 
-class Inicio extends SalaBase {
+
+export class PortaSaida extends EntidadePorta {
+    static nome = "Porta Saida";
+
+    acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): AcoesCallbackResult {
+        if(this.estaAberto()) {
+            return {};
+        } else {
+            return {
+                "DESTRANCAR": async () => this.abrir(ctx, extra),
+            };
+        }
+    }
+
+    async abrir(ctx: Contexto, extra?: AcaoExtraPopulado | null) {
+        if(this.ehReferencia) {
+            await ctx.alterarEntidade(this, { estado: { aberto: true }});
+            return "Você abre a porta, do lado de fora é fácil destrancar";
+        }
+        
+        const chave = extra?.item || ctx.jogador.obterItensPorNome(itensPadrao.Chave).at(0);
+        if(!chave) {
+            return "A porta está trancada, você precisa de uma chave para abri-la.";
+        }
+        const chaveCerta = chave.item.nome === itensPadrao.Chave.nome && chave.item.estado?.abre === "Porta Saida";
+        if(!chaveCerta) {
+            return "Você não consegue destrancar a porta.";
+        }
+        
+        await ctx.alterarEntidade(this, { estado: { aberto: true }});
+        return "Você destranca a porta com a chave e abre ela.";
+    }
+    async fechar(ctx: Contexto, extra?: AcaoExtraPopulado | null) {
+        await ctx.alterarEntidade(this, { estado: { aberto: false }});
+        return "Você fecha a porta, parece que ela trancou sozinha.";
+    }
+}
+
+export class SalaInicio extends SalaBase {
     static nome = "Inicio";
     static itensIniciais = (): ItemInicial[] => [{
         item: itensPadrao.Papel,
@@ -60,32 +99,30 @@ class Inicio extends SalaBase {
         }
     }];
     static entidadesIniciais = (): EntidadeInicial[] => [{
-        entidade: EntidadePorta,
-        nome: "PortaInicio"
+        entidade: PortaSaida,
+        estadoInicial: {
+            aberto: false
+        }
     }];
     static estadoInicial = (): Estado => ({ luz: true });
 
     descricao(ctx: Contexto) {
-        if(!ctx.jogador.terminouTutorial()) {
-            return "Você acorda em uma sala sem janelas (subsolo?), você não sabe porquê está aqui, ao norte há um quarto, Ao leste há uma porta";
-        } else {
-            return "Você está em uma sala com um buraco enorme na parede a oeste, ao norte há um quarto, Ao leste há uma porta";
-        }
+        return "Você acorda em uma sala sem janelas (subsolo?), você não sabe porquê está aqui, ao norte há um quarto, Ao oeste há uma porta";
     }
 
     acoes(ctx: Contexto): AcoesCallbackResult {
         return {
             "N": Quarto,
-            "L": () => {
-                const porta = this.obterEntidadePorNome(EntidadePorta, "PortaInicio").at(0);
+            "O": async () => {
+                const porta = this.obterEntidadePorNome(PortaSaida).at(0);
                 if(!porta?.estaAberto()) {
                     return "A Porta está fechada";
                 }
-                return Labirinto1
+                await ctx.alterarEntidade(porta, { estado: { aberto: false }});
+                await ctx.moverParaSala(BuracoNaParede);
+                return "Você passa pela porta e um vento forte faz ela se fechar atrás de você. Parece que a porta trancou sozinha. \n Você sobre os degraus...";
             },
-            ...(ctx.jogador.terminouTutorial() ? {
-                "O": salasClareira.BuracoNaParede
-            }: {})
+            "L": Labirinto1
         };
     }
 }
@@ -99,21 +136,10 @@ class Labirinto extends SalaBase {
 class Labirinto1 extends Labirinto {
     static nome = "Labirinto1";
     static estadoInicial = (): Estado => ({ luz: false });
-
-    static entidadesIniciais = (): EntidadeInicial[] => [{
-        entidade: EntidadePorta,
-        ref: { sala: Inicio, nome: "PortaInicio" }
-    }];
-
+    
     acoes(ctx: Contexto): AcoesCallbackResult {
         return {
-            "O": () => {
-                const porta = this.obterEntidadePorNome(EntidadePorta, "PortaInicio").at(0);
-                if(!porta?.estaAberto()) {
-                    return "A Porta está fechada";
-                }
-                return Inicio
-            },
+            "O": SalaInicio,
             "L": Labirinto2,
             "S": Labirinto4
         };
@@ -123,6 +149,13 @@ class Labirinto1 extends Labirinto {
 class Labirinto2 extends Labirinto {
     static nome = "Labirinto2";
     static estadoInicial = (): Estado => ({ luz: false });
+    static itensIniciais = (): ItemInicial[] => [{
+        item: itensPadrao.Papel, 
+        quantidade: 1,
+        estadoInicial: {
+            texto: "Quarta feira: Eu lembro ter visto uma corda em algum lugar... Mas aqui é tudo igual"
+        }
+    }];
 
     acoes(ctx: Contexto) {
         return {
@@ -162,10 +195,6 @@ class EntidadePoco extends EntidadeBase {
             return {
                 "SUBIR": () => {
                     if(corda) {
-                        const pedras = ctx.jogador.obterItensPorNome(itensPadrao.Pedra).at(0);
-                        if(pedras && pedras.item.quantidade > 1) {
-                            return "Você tenta subir a corda, mas está carregando pedras demais...";
-                        }
                         ctx.escrevaln("Você sobe a corda e chega de volta na sala com o poço.");
                         return Labirinto3;
                     } else {
@@ -175,19 +204,30 @@ class EntidadePoco extends EntidadeBase {
             };
         } else {
             return {
+                "OLHAR": () => {
+                    const chave = ctx.jogador.obterItensPorNome(itensPadrao.Chave).at(0);
+                    if(chave) {
+                        ctx.moverItem(chave, { quantidade: 1, onde: null });
+                        return "Você olha para dentro do poço e a chave que você tinha caiu lá dentro!";
+                    }
+                    return "Você olha para dentro do poço, é muito fundo, não dá para ver o fundo.";
+                },
+                "PULAR": () => {
+                    return "Você não tem coragem de pular em um poço tão fundo.";
+                },
                 "DESCER": () => {
                     if(corda) {
                         ctx.escrevaln("Você desce a corda e chega ao fundo do poço.");
                         return SalaPoco;
                     } else {
-                        return "Você não tem como descer, não há nenhuma corda aqui.";
+                        return "Você não tem como descer, o poço é muito fundo. talvez com uma corda seria possível...";
                     }
                 },
                 ...(!corda ? {"AMARRAR": async () => {
                     const jogadorCorda = ctx.jogador.obterItensPorNome(itensPadrao.Corda).at(0);
                     if(jogadorCorda) {
                         await ctx.moverItem(jogadorCorda, { quantidade: 1, onde: this });
-                        return "Você amarra a corda no poço, agora dá para descer por ela.";
+                        return "Você amarra a corda no poço, agora dá para descer por ele.";
                     } else {
                         return "Você não tem nenhuma corda para amarrar no poço.";
                     }
@@ -214,13 +254,14 @@ class Labirinto3 extends Labirinto {
     static estadoInicial = (): Estado => ({ luz: true });
 
     descricao(ctx: Contexto): string {
-        return "Você está em uma caverna, um pouco da luz do sol entra por uma abertura no alto, você vê uma ponte de cordas cruzando por cima de você, há um poço no meio da sala.";
+        return "Você está em uma caverna, um pouco da luz do sol entra por uma abertura no alto, há um poço no meio da sala.";
     }
 
     acoes(ctx: Contexto): AcoesCallbackResult {
         return {
             "N": () => {
-                ctx.escrevaln("A passagem dá algumas voltas e você acaba voltando para onde estava.");
+                ctx.escrevaln("A passagem dá algumas voltas e você acaba se perdendo...");
+                return Labirinto9;
             },
             "S": Labirinto6
         };
@@ -231,8 +272,14 @@ class SalaPoco extends SalaBase {
     static nome = "Poco";
     static estadoInicial = (): Estado => ({ luz: false });
     static itensIniciais = (): ItemInicial[] => [{ 
-        item: itensPadrao.Pedra, 
+        item: itensPadrao.Moedas, 
         quantidade: 5
+    },{ 
+        item: itensPadrao.Chave, 
+        quantidade: 1,
+        estadoInicial: {
+            abre: "Porta Saida"
+        }
     }];
     static entidadesIniciais = (): EntidadeInicial[] => [{
         entidade: EntidadePoco,
@@ -252,7 +299,7 @@ class Labirinto4 extends Labirinto {
         return {
             "N": Labirinto1,
             "O": () => {
-                ctx.escrevaln("Você passa por uma passagem estreita cheia de curvas")
+                ctx.escrevaln("Você passa por uma passagem estreita cheia de curvas e no final tropeça e cai...");
                 return Labirinto7
             },
             "L": Labirinto5
@@ -268,7 +315,8 @@ class Labirinto5 extends Labirinto {
         return {
             "N": Labirinto2,
             "O": Labirinto4,
-            "L": Labirinto6
+            "L": Labirinto6,
+            "SO": Labirinto7
         };
     }
 }
@@ -288,24 +336,6 @@ class Labirinto6 extends Labirinto {
 class Labirinto7 extends Labirinto {
     static nome = "Labirinto7";
     static estadoInicial = (): Estado => ({ luz: false });
-
-    acoes(ctx: Contexto): AcoesCallbackResult {
-        return {
-            "N": () => {
-                ctx.escrevaln("O caminho ficou muito estreito e não deu para passar...");
-            },
-            "O": () => {
-                ctx.escrevaln("Você passa por uma passagem estreita cheia de curvas")
-                return Labirinto4
-            },
-            "L": Labirinto8
-        };
-    }
-}
-
-class Labirinto8 extends Labirinto {
-    static nome = "Labirinto8";
-    static estadoInicial = (): Estado => ({ luz: false });
     static itensIniciais = (): ItemInicial[] => [{ 
         item: itensPadrao.Corda, 
         quantidade: 1
@@ -314,10 +344,27 @@ class Labirinto8 extends Labirinto {
     acoes(ctx: Contexto): AcoesCallbackResult {
         return {
             "N": () => {
+                ctx.escrevaln("O caminho ficou muito estreito e não deu para passar...");
+            },
+            "NE": Labirinto5
+        };
+    }
+}
+
+class Labirinto8 extends Labirinto {
+    static nome = "Labirinto8";
+    static estadoInicial = (): Estado => ({ luz: false });
+
+    acoes(ctx: Contexto): AcoesCallbackResult {
+        return {
+            "N": () => {
                 ctx.escrevaln("Você sobe em uma pedra para passar mas tropeça e cai...");
                 return Labirinto5;
             },
-            "O": Labirinto7,
+            "O": () => {
+                ctx.escrevaln("Você sobe em uma pedra para passar mas tropeça e cai...");
+                return Labirinto7;
+            },
             "L": Labirinto9
         };
     }
@@ -326,10 +373,13 @@ class Labirinto8 extends Labirinto {
 class Labirinto9 extends Labirinto {
     static nome = "Labirinto9";
     static estadoInicial = (): Estado => ({ luz: false });
-
-    descricao(ctx: Contexto): string {
-        return "Todos os lados há passagens, tudo igual, pela parede há degraus que levam para parte de cima da caverna.";
-    }
+    static itensIniciais = (): ItemInicial[] => [{
+        item: itensPadrao.Papel, 
+        quantidade: 1,
+        estadoInicial: {
+            texto: "Terça feira: Quando eu fui olhar o poço, me inclinei demais e caiu a chave do meu bolso, que droga!"
+        }
+    }];
 
     acoes(ctx: Contexto): AcoesCallbackResult {
         return {
@@ -337,13 +387,13 @@ class Labirinto9 extends Labirinto {
                 ctx.escrevaln("Você sobe em uma pedra para passar mas tropeça e cai...");
                 return Labirinto6;
             },
-            "O": Labirinto8,
-            "SUBIR": Caverna        
+            "O": Labirinto8
         };
     }
 }
 const salasLabirinto = {Labirinto1, Labirinto2, Labirinto3, Labirinto4, Labirinto5, Labirinto6, Labirinto7, Labirinto8, Labirinto9};
 
+/*
 class Caverna extends SalaBase {
     static nome = "Caverna";
     static estadoInicial = (): Estado => ({ luz: true });
@@ -461,18 +511,19 @@ class Tesouro extends SalaBase {
             }
         };
     }
-}
+}*/
 
 export const salaasInicio = {
     Quarto,
-    Inicio,
+    SalaInicio,
     SalaPoco,
-    Caverna,
-    Tesouro,
+    //Caverna,
+    //Tesouro,
     ...salasLabirinto
 };
 
 export const entidadesInicio = {
-    BauTesouro,
-    EntidadePoco
+    //BauTesouro,
+    PortaSaida,
+    EntidadePoco,
 };

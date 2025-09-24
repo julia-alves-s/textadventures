@@ -5,5 +5,8 @@ export default defineConfig({
     allowedHosts: true,
     port: 3000,
   },
+  // GitHub Pages
   base: "/textadventures/"
+  // Itch.io
+  // base: "./"
 });

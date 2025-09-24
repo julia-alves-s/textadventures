@@ -16,6 +16,11 @@ export class ControllerBase {
         query: ParsedRequestUndef<Q,B,P>["query"],
         body: ParsedRequestUndef<Q,B,P>["body"],
         params: ParsedRequestUndef<Q,B,P>["params"]
+    } | {
+        ctx: undefined, 
+        query: undefined,
+        body: undefined,
+        params: undefined
     }> {
         const usuario = req.session! as User;
         const parsed = parseRequest(schema, req) as any;
@@ -26,6 +31,17 @@ export class ControllerBase {
         }
 
         const ctx = new Contexto(await Contexto.carregar(usuario.username, salaId));
+
+        const parar = await ctx.executarAcoesAntes(parsed.body ?? null);
+        if(parar) {
+            await this.sendResponse(ctx, req, res);
+            return {
+                ctx: undefined,
+                query: undefined,
+                body: undefined,
+                params: undefined
+            };
+        }
 
         return {
             ctx,

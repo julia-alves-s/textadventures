@@ -62,6 +62,10 @@ class Bau extends EntidadeBase {
             return { itens: [], filhos: [] };
         }
     }
+    
+    itensSeguros() {
+        return true;
+    }
 }
 
 export const entidadesContainer = {

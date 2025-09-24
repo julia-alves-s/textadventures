@@ -38,7 +38,7 @@ export class CommandParser<T> {
             alvos[item.id] = { sinonimos: item.nome.split(" "), ref: item };
         }
         for(let ent of sala.entidades || []) {
-            alvos[ent.id] = { sinonimos: ent.tipo.split(" "), ref: ent };
+            alvos[ent.id] = { sinonimos: ent.nome ? ent.nome.split(" ") : ent.tipo.split(" "), ref: ent };
             if(ent.username) {
                 alvos[ent.id].sinonimos.push(ent.username);
             }

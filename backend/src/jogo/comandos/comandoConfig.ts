@@ -50,6 +50,11 @@ export const Acao = {
     Cavar: "CAVAR",
     Queimar: "QUEIMAR",
 
+    Encher: "ENCHER",
+    Esvaziar: "ESVAZIAR",
+    Comprar: "COMPRAR",
+    Vender: "VENDER",
+
     Oi: "OI",
     Gritar: "GRITAR",
     Pular: "PULAR",
@@ -64,5 +69,6 @@ export const Acao = {
     Chao: "CHAO",
 
     $Descricao: "$DESCRICAO",
+    $AcaoAntes: "$ACAO_ANTES",
 } as const;
 export type AcaoValue = typeof Acao[keyof typeof Acao];

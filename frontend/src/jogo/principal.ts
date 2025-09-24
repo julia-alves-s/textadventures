@@ -151,7 +151,10 @@ export const desambiguar = async (
         }
     }
 
-    if((item.length + entidade.length) > 1 && (!acao || acoesConfig[acao as AcaoValue].args >= arg)) {
+    if((item.length + entidade.length) > 1) {
+        if(!(!acao || acoesConfig[acao as AcaoValue].args >= arg)) {
+            return { item: undefined, entidade: undefined };
+        }
         termPrint(mensagem);
         let k = 0;
         let options = [];

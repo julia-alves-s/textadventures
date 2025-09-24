@@ -10,9 +10,9 @@ export type ArrowOrValue<T> = T | (() => MaybePromise<T>);
 
 export const execArrowOrValue = async <T>(arrowOrValue: ArrowOrValue<T>) => {
     if(typeof arrowOrValue === "function" && !("nome" in arrowOrValue)) {
-        return await (arrowOrValue as () => T | Promise<T>)();
+        return (await (arrowOrValue as () => MaybePromise<T>)());
     } else {
-        return arrowOrValue;
+        return arrowOrValue as T;
     }
 }
 

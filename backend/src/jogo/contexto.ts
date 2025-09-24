@@ -4,7 +4,7 @@ import { gerarPilhaId, getEntidadeConfig, getItemConfig, getSalaConfig } from ".
 
 import { SalaRepository } from "../repositories/salaRepository.ts";
 import { EntidadeJogador } from "./entidades/jogador.ts";
-import type { AcoesCallbackResult, SalaBase, SalaBaseStatic } from "./salas/base.ts";
+import type { AcaoExtraPopulado, AcoesCallbackResult, SalaBase, SalaBaseStatic } from "./salas/base.ts";
 import type { ItemBase, ItemBaseStatic } from "./itens/base.ts";
 import type { EntidadeBase } from "./entidades/base.ts";
 import { EntidadeRepository } from "../repositories/entidadeRepository.ts";
@@ -14,7 +14,7 @@ import { execArrowOrValue, JogoError, type Estado } from "./types.ts";
 import { ItemRepository } from "../repositories/itemRepository.ts";
 import type { Entidade } from "../db/entidadeSchema.ts";
 import e from "express";
-import { Acao } from "./comandos/comandoConfig.ts";
+import { Acao, type AcaoValue } from "./comandos/comandoConfig.ts";
 import { RevokeSessionError } from "../middlewares/authMiddleware.ts";
 
 // Serve como service que interage com o banco de dados, e guarda o estado atual do jogo
@@ -177,6 +177,7 @@ export class Contexto {
             descricaoEntidades.push({
                 id: e.entidade.id,
                 tipo: e.entidade.tipo,
+                nome: e.entidade.nome,
                 username: e.entidade.username,
                 atualizadoEm: e.entidade.atualizadoEm,
                 descricao: descricaoEntidade,
@@ -230,6 +231,37 @@ export class Contexto {
             },
         };
     }
+
+    async _execAcao(acao: AcaoValue, extra: AcaoExtraPopulado | null, obj: ItemBase | EntidadeBase | SalaBase) {
+        const acoes = await obj._acoes(this, extra);
+        const result = acao in acoes ? await execArrowOrValue(acoes[acao]) : undefined;
+        if(result && typeof result !== "string") {
+            await this.moverParaSala(result);
+            return true;
+        } else if(result && typeof result === "string") {
+            this.escrevaln(result);
+            return true;
+        }
+        
+        return false;
+    }
+
+    async executarAcoesAntes(extra?: AcaoExtraPopulado | null) {
+        let acoesSala = await this.sala._acoes(this, extra);
+        if(Acao.$AcaoAntes in acoesSala) {
+            const parar = await this._execAcao(Acao.$AcaoAntes, null, this.sala);
+            if(parar) return true;
+        }
+        for(let entidade of this.sala.entidades) {
+            const acoesEntidade = await entidade._acoes(this, extra);
+            if(Acao.$AcaoAntes in acoesEntidade) {
+                const parar = await this._execAcao(Acao.$AcaoAntes, null, entidade);
+                if(parar) return true;
+            }
+        }
+
+        return false;
+    }
     
     // =========================================================================
     //                 Funções que alteram o estado do jogo  
@@ -261,7 +293,7 @@ export class Contexto {
                 estado = i.item.estado;
             }
 
-            const seguro = "entidade" in onde && onde.entidade.tipo === EntidadeJogador.nome;
+            const seguro = "entidade" in onde && onde.itensSeguros();
             const id = "sala" in onde ? onde.sala.id : onde.entidade.id;
             await ItemRepository.moverItem(db, i.item.id, { quantidade, ondeId: id, seguro: seguro, pilhaId: gerarPilhaId(i.item.nome, estado), estado });
         }
@@ -277,7 +309,7 @@ export class Contexto {
 
     async criarItem(item: { item: typeof ItemBase & ItemBaseStatic, estado?: Estado | null, quantidade: number, onde: SalaBase | EntidadeBase }) {
         const onde = item.onde;
-        const seguro = "entidade" in onde && onde.entidade.tipo === EntidadeJogador.nome;
+        const seguro = "entidade" in onde && onde.itensSeguros();
         const id = "sala" in onde ? onde.sala.id : onde.entidade.id;
         await ItemRepository.adicionarItem(db, {
             nome: item.item.nome,
@@ -308,12 +340,12 @@ export class Contexto {
         await SalaRepository.atualizar(db, sala.id, { estado: sala.estado });
     }
 
-    async alterarEntidade(entidade: EntidadeBase, { ondeId, estado }: { 
-        ondeId?: string | null,
+    async alterarEntidade(entidade: EntidadeBase, { onde, estado }: { 
+        onde?: SalaBase | EntidadeBase | typeof SalaBase & SalaBaseStatic | null,
         estado?: Estado | null,
     }) {
         const ent = entidade.entidade;
-        if(ondeId === null) {
+        if(onde === null) {
             // Deleta a entidade
             await EntidadeRepository.deletar(db, ent.ondeId, ent.id);
         } else {
@@ -321,8 +353,16 @@ export class Contexto {
             if(estado) {
                 estado = { ...(ent.estado || {}), ...estado };
             }
-            const result = await EntidadeRepository.atualizar(db, ent.id, { ondeId: ondeId, estado: estado });
-            ent.estado = result.estado;
+
+            if(onde && "nome" in onde) {
+                const { entidade, sala } = (await EntidadeRepository.moveParaSalaNome(db, ent.id, onde.nome)) || {};
+                if(!entidade || !sala) {
+                    throw new JogoError("Erro ao mover para a sala " + onde.nome);
+                }
+            } else {
+                const id = onde ? ("sala" in onde ? onde.sala.id : onde.entidade.id) : ent.ondeId;
+                const result = await EntidadeRepository.atualizar(db, ent.id, { ondeId: id, estado: estado });
+            }
         }
         // A FAZER: atualizar só em memória.
 

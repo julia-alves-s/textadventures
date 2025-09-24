@@ -76,4 +76,9 @@ export abstract class EntidadeBase {
             filhos: this.filhos.filter(e => e.estaVisivel())
         };
     }
+
+    // Se os itens dentro dessa entidade são seguros (somem sozinhos quando limpa o chão)
+    itensSeguros() {
+        return false;
+    }
 }

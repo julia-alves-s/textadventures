@@ -112,6 +112,7 @@ export type RespostaEntidades = {
     id: string;
     categoria: string;
     tipo: string;
+    nome?: string | null;
     username?: string;
     atualizadoEm: string;
     descricao?: string;

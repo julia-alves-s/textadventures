@@ -20,6 +20,12 @@ class Corda extends ItemBase {
         return "Corda resistente, parece que aguenta bastante peso.";
     }
 }
+class Chave extends ItemBase {
+    static nome = "Chave";
+    descricao(ctx: Contexto) {
+        return "Chave, o que será que ela abre?";
+    }
+}
 class Lampiao extends ItemBase {
     static nome = "Lampiao";
     static estadoInicial = () => ({ luz: false });
@@ -90,11 +96,64 @@ class Papel extends ItemBase {
         };
     }
 }
+class Machado extends ItemBase {
+    static nome = "Machado"
+    descricao(ctx: Contexto) {
+        return "Um machado afiado.";
+    }
+}
+class Tronco extends ItemBase {
+    static nome = "Tronco Madeira"
+    descricao(ctx: Contexto) {
+        return "Tronco de madeira.";
+    }
+}
+
+class Balde extends ItemBase {
+    static nome = "Balde";
+    static estadoInicial = () => ({ agua: false });
+    descricao(ctx: Contexto) {
+        if(this.item.estado?.agua) {
+            return "Balde cheio de água.";
+        } else {
+            return "Balde vazio.";
+        }
+    }
+
+    acoes(ctx: Contexto): AcoesCallbackResult {
+        const item = this.item;
+        const acoes: AcoesCallbackResult = {};
+        if(!this.estaNaMochila(ctx)) {
+            return acoes;
+        }
+
+        if(item.estado?.agua) {
+            acoes["ESVAZIAR"] = async () => {
+                await ctx.moverItem(this, { onde: this.onde, quantidade: 1, estado: { agua: false } });
+                return "Você esvazia o balde.";
+            }
+        } else {
+            acoes["ENCHER"] = async () => {
+                if(ctx.sala.sala.estado?.agua !== true) {
+                    return "Aqui não há água para encher o balde.";
+                }
+                await ctx.moverItem(this, { onde: this.onde, quantidade: 1, estado: { agua: true } });
+                return "Você enche o balde com água.";
+            }
+        }
+
+        return acoes;
+    }
+}
 
 export const itensPadrao = {
     Pedra,
     Moedas,
     Lampiao,
+    Chave,
     Corda,
-    Papel
+    Papel,
+    Machado,
+    Tronco,
+    Balde
 };

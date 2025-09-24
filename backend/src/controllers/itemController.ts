@@ -7,6 +7,8 @@ import type { AcaoExtraPopulado, SalaBase, SalaBaseStatic } from "../jogo/salas/
 export class ItemController extends ControllerBase {
     static acaoItem: RequestHandler = async (req, res) => {
         const { ctx, body, params } = await this.loadRequest(itemDocs["/sala/{salaId}/item/{id}/{acao}"].post.schema, req, res);
+        if(!ctx) return;
+        
         const itemId = params.id;
 
         const achouObjeto = ctx.getItemVisivel(itemId);

@@ -54,4 +54,20 @@ export class EntidadeJogador extends EntidadeBase {
     terminouTutorial(): boolean {
         return this.entidade.estado?.terminouTutorial === true;
     }
+
+    itensSeguros() {
+        return true;
+    }
+}
+
+export class EntidadeNPC extends EntidadeBase {
+    static nome = "NPC";
+
+    descricao(ctx: Contexto) {
+        return this.entidade.nome || "Alguém desconhecido.";
+    }
+
+    itensSeguros(): boolean {
+        return true;
+    }
 }

@@ -57,7 +57,7 @@ export abstract class SalaBase {
     }
 
     obterEntidadePorNome<T extends typeof EntidadeBase>(entidade: T & EntidadeBaseStatic, nome?: string | null): InstanceType<T>[] {
-        return this.entidades.filter(e => e.entidade.tipo === entidade.nome && e.entidade.nome === (nome || null)) as InstanceType<T>[];
+        return this.entidades.filter(e => e.entidade.tipo === entidade.nome && (!nome || e.entidade.nome === nome)) as InstanceType<T>[];
     }
 
     temLuz(): boolean {

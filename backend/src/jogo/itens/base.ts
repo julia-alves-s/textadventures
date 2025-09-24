@@ -21,7 +21,7 @@ export abstract class ItemBase {
     async _acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): Promise<AcoesCallbackResult> {
         const acoes: AcoesCallbackResult = {};
 
-        if(this.onde instanceof EntidadeBase && this.onde.entidade.id === ctx.jogador.entidade.id) {
+        if(this.estaNaMochila(ctx)) {
             acoes["LARGAR"] = async () => {
                 await ctx.moverItem(this, { 
                     quantidade: extra?.quantidade || this.item.quantidade,
@@ -51,6 +51,10 @@ export abstract class ItemBase {
     constructor(info: {item: Item, onde: SalaBase | EntidadeBase}) {
         this.item = info.item;
         this.onde = info.onde;
+    }
+
+    estaNaMochila(ctx: Contexto) {
+        return this.onde instanceof EntidadeBase && this.onde.entidade.id === ctx.jogador.entidade.id;
     }
 
     temLuz(): boolean {
