@@ -131,7 +131,7 @@ export const acoesConfig: Record<AcaoValue, {sinonimos: string[], args: number, 
 
     [Acao.Oi]: { sinonimos: ["OI", "OLA", "HOLA", "HI", "HELLO", "HEY", "SALVE"], args: 0, maxArgs: 1 },
     [Acao.Gritar]: { sinonimos: ["GRITAR", "BERRAR", "ESBRAVEJAR"], args: 0, maxArgs: 0 },
-    [Acao.Pular]: { sinonimos: ["PULAR", "SALTAR"], args: 0, maxArgs: 0 },
+    [Acao.Pular]: { sinonimos: ["PULAR", "SALTAR"], args: 0, maxArgs: 1 },
     [Acao.Dormir]: { sinonimos: ["DORMIR", "AGUARDAR", "ESPERAR", "PARAR", "PAUSAR"], args: 0, maxArgs: 0 },
 
     [Acao.Ir]: { sinonimos: ["IR", "ANDAR", "VAI", "ANDE", "CAMINHE", "CAMINHAR", "CORRER"], args: 1, maxArgs: 1 },
@@ -146,3 +146,5 @@ export const acoesConfig: Record<AcaoValue, {sinonimos: string[], args: number, 
     [Acao.Ajuda]: { sinonimos: ["?", "AJUDA", "HELP", "SOCORRO"], args: 0, maxArgs: 0 },
     [Acao.Logout]: { sinonimos: ["LOGOUT", "EXIT", "QUIT", "ABANDONAR", "DESLOGAR", "TERMINAR", "ENCERRAR"], args: 0, maxArgs: 0 },
 };
+
+export const DIRECOES: string[] = [Acao.N, Acao.S, Acao.L, Acao.O, Acao.NE, Acao.NO, Acao.SE, Acao.SO, Acao.Subir, Acao.Descer, Acao.Entrar, Acao.Sair];

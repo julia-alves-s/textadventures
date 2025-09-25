@@ -1,6 +1,6 @@
 import { distance, distance as levenshteinDistance } from 'fastest-levenshtein';
 import anyAscii from 'any-ascii';
-import { Acao, acoesConfig, type AcaoValue } from './comandoConfig';
+import { Acao, acoesConfig, DIRECOES, type AcaoValue } from './comandoConfig';
 import type { RespostaEntidades, RespostaItens, RespostaSituacao } from './fetchApi';
 
 // --- Interfaces para Estruturar os Dados do Jogo ---
@@ -18,8 +18,6 @@ interface GameContext<T> {
 function normalize(text: string): string {
     return anyAscii(text.replaceAll(/[\r\n\t]/g," ")).toUpperCase().trim();
 }
-
-const DIRECOES: string[] = [Acao.N, Acao.S, Acao.L, Acao.O, Acao.NE, Acao.NO, Acao.SE, Acao.SO, Acao.Subir, Acao.Descer, Acao.Entrar, Acao.Sair];
 
 export class CommandParser<T> {
     private rawCommand: string;
@@ -109,7 +107,7 @@ export class CommandParser<T> {
 
     private extrairComando(palavra?: string | null | undefined) {
         if(!palavra) {
-            return [{ match: Acao.Olhar, confidence: 1 }];
+            return [{ match: null, confidence: 0 }];
         }
         return this.findBestMatch(palavra, acoesConfig);
     }
@@ -223,6 +221,8 @@ export class CommandParser<T> {
         }
 
         if(!cmd.acao) {
+            if(!cmd.acao && !cmd.texto) return { acao: null, quantidade: undefined, alvoA: [], alvoB: [], resto: this.args.slice(this.argsi).join(" ") };
+
             const sorteio = Math.floor(Math.random() * 5);
             if(sorteio === 0) throw new ParserError("Comando desconhecido. Precisa de ajuda? escreva 'ajuda'.");
             if(sorteio === 1) throw new ParserError("sflhs fsfh sd fjsdhfsdjfsdfsd sdfsdf - Foi isso que entendi");

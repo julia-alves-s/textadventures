@@ -223,6 +223,13 @@ function runFakeTerminal() {
                 }
             break;
             default: // Print all other characters for demo
+                if(optionsMode) {
+                    // apaga a última opção
+                    for (let i = 0; i < command.length; i++) {
+                        term.write('\b \b');
+                    }
+                    command = "";
+                }
                 if (e >= String.fromCharCode(0x20) && e <= String.fromCharCode(0x7E) || e >= '\u00a0') {
                     command += e;
                     term.write(passwordMode ? "*" : e);

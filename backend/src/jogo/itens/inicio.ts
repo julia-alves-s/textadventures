@@ -1,3 +1,4 @@
+import { Acao } from "../comandos/comandoConfig.ts";
 import type { Contexto } from "../contexto.ts";
 import type { AcaoExtraPopulado, AcoesCallbackResult } from "../salas/base.ts";
 import { ItemBase } from "./base.ts";
@@ -28,25 +29,61 @@ class Chave extends ItemBase {
 }
 class Lampiao extends ItemBase {
     static nome = "Lampiao";
-    static estadoInicial = () => ({ luz: false });
+    static estadoInicial = () => ({ luz: false, cargas: 5 });
 
     descricao(ctx: Contexto) {
         if(this.item.estado?.luz) {
-            return "Lampião antigo (aceso)";
+            switch(this.item.estado.cargas) {
+                case 1: return "Lampião antigo (quase apagando)";
+                case 2: return "Lampião antigo (com pouca luz)";
+                default: return "Lampião antigo (aceso)";
+            }
         } else {
             return "Lampião antigo (apagado)";
         }
     }
+
     acoes(ctx: Contexto): AcoesCallbackResult {
         const item = this.item;
+        let cargas = Number(item.estado?.cargas) || 0;
         const acoes: AcoesCallbackResult = {};
+        acoes["OLHAR"] = () => {
+            if(item.estado?.luz) {
+                return `O lampião está aceso e tem ${cargas} cargas restantes.`;
+            } else {
+                return `O lampião está apagado.`;
+            }
+        };
         if(item.estado?.luz) {
+            acoes[Acao.$AcaoAntes] = async () => {
+                // Só perde cargas se não é o item do spawn
+                if(this.item.quantidadeInicial !== null) return;
+
+                if(Math.random() < 0.03) { // 3% de chance de peder 1 carga
+                    cargas = Math.max(0, cargas - 1);
+                    await ctx.moverItem(this, { onde: this.onde, quantidade: 1, estado: { cargas: cargas, luz: cargas > 0 } });
+                    switch(cargas) {
+                        case 0: ctx.escrevaln("O lampião apaga."); break;
+                        case 1: ctx.escrevaln("O lampião está quase apagando."); break;
+                        case 2: ctx.escrevaln("O lampião pisca um pouco, parece que está com pouca luz."); break;
+                        default: 
+                            ctx.escrevaln("O lampião parece que perdeu um pouco da claridade.");
+                        break;
+                    }
+                } else if(cargas < 3 && Math.random() < 0.05) { // 5% de chance de passar um vento e apagar o lampião
+                    ctx.escrevaln("Um vento forte passa e apaga o lampião.");
+                    await ctx.moverItem(this, { onde: this.onde, quantidade: 1, estado: { luz: false } });    
+                }
+            };
             acoes["APAGAR"] = async () => {
                 await ctx.moverItem(this, { onde: this.onde, quantidade: 1, estado: { luz: false } });
                 return "Você apaga o lampião.";
             }
         } else {
             acoes["ACENDER"] = async () => {
+                if(cargas <= 0) {
+                    return "Você tenta acender o lampião, mas ele logo apaga.";
+                }
                 await ctx.moverItem(this, { onde: this.onde, quantidade: 1, estado: { luz: true } });
                 return "Você acende o lampião.";
             }

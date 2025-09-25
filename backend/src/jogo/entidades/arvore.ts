@@ -16,7 +16,7 @@ export class EntidadeArvore extends EntidadeBase {
     }
 
     estaCrescida() {
-        return this.tempoCortada() > 1000 * 60 * 10; // 10 minutos
+        return this.tempoCortada() > 1000 * 60 * 5; // 5 minutos
     }
 
     descricao(ctx: Contexto): MaybePromise<string | void> {
@@ -28,9 +28,9 @@ export class EntidadeArvore extends EntidadeBase {
             return "Um toco de árvore recém cortada.";
         } else if(tempo < 1000 * 60 * 2) {
             return "Um toco de árvore que está começando a brotar.";
-        } else if(tempo < 1000 * 60 * 4) {
+        } else if(tempo < 1000 * 60 * 3) {
             return "Um toco de árvore com alguns galhos pequenos crescendo.";
-        } else if(tempo < 1000 * 60 * 7) {
+        } else if(tempo < 1000 * 60 * 4) {
             return "Uma árvore jovem, ainda pequena mas crescendo rapidamente.";
         } else {
             return "Uma árvore que está quase crescida.";

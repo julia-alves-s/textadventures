@@ -48,7 +48,7 @@ export class BuracoNaParede extends SalaBase {
             "DESCER": () => {
                 const porta = this.obterEntidadePorNome(PortaSaida).at(0);
                 if(!porta?.estaAberto()) {
-                    ctx.escrevaln("A Porta está fechada");
+                    return "A Porta está fechada";
                 }
                 return SalaInicio;
             },
@@ -286,7 +286,18 @@ class Lenhador extends EntidadeNPC {
         } else {
             const tronco = ctx.jogador.obterItensPorNome(itensPadrao.Tronco);
             acoes["OI"] = () => {
-                ctx.escrevaln("O lenhador diz: 'Você gostaria de trabalhar? eu pago 5 moedas por tronco que me trouxer. Pode pegar aquele machado ali.'");                
+                const sorteio = Math.floor(Math.random() * 10);
+                switch(sorteio) {
+                    case 0: return "O lenhador diz: 'Você gostaria de trabalhar? eu pago 5 moedas por tronco que me trouxer. Pode pegar aquele machado ali.'";
+                    case 1: return "O lenhador diz: 'Cuidado com ladrões ao andar pela estrada...'";
+                    case 2: return "O lenhador diz: 'Ao sul a floresta fica tão densa que fica tão escuro como a noite.'";
+                    case 3: return "O lenhador diz: 'Algumas árvores rendem mais troncos que outras.'";
+                    case 5: return "O lenhador diz: 'Desde que a ponte caiu, o movimento por aqui diminuiu muito.'";
+                    case 6: return "O lenhador diz: 'Nunca ande pela floresta sem um machado, pode ser que você precise cortar para abrir caminho.'";
+                    case 7: return "O lenhador diz: 'Às vezes eu vejo um ladrão rondando pela estrada...'";
+                    case 8: return "O lenhador diz: 'Oi.'";
+                    default: return "O lenhador não te responde.";
+                }
             };
             if(tronco.length > 0) {
                 acoes["VENDER"] = async () => {
@@ -367,6 +378,18 @@ class AreaLenhador extends SalaBase {
 
 class Ladrao extends EntidadeNPC {
     static nome = "Ladrao";
+    static estadoInicial = (): Estado => ({ 
+        roubouEm: null,
+        roubouDe: null
+    });
+
+    iraRoubar(username: string) {
+        const roubouEm = Number(this.entidade.estado?.roubouEm) || 0;
+
+        return Math.random() < 0.5 && // 50% de chance
+        (username !== this.entidade.estado?.roubouDe || (Date.now() - roubouEm) > 1000 * 60 * 60) && // Não roubou dessa pessoa na última hora
+        (Date.now() - roubouEm) > 1000 * 60 * 5; // passou já 5 minutos desde a última vez que roubou (qualquer um)
+    }
 
     descricao(ctx: Contexto) {
         return "Um ladrão suspeito está rondando a área, parecendo procurar por algo para roubar.";
@@ -376,36 +399,46 @@ class Ladrao extends EntidadeNPC {
         return {
             "$ACAO_ANTES": async () => {
                 const moedas = ctx.jogador.obterItensPorNome(itensPadrao.Moedas).at(0);
-                const possiveisDestinos = [Estrada, EstradaNorte, EstradaSul, Clareira, Floresta1, Floresta2, MargemDoRio]
+                const possiveisDestinos = [Estrada, EstradaNorte, EstradaSul, Floresta1]
                     .filter(s => s.nome !== (this.onde as SalaBase)?.sala.nome);
+                const proximoDestino = possiveisDestinos.at(Math.floor(Math.random() * possiveisDestinos.length)) || Estrada;
 
-                ctx.escrevaln("O ladrão se aproxima...");
-
-                if(Math.random() > 0.5) { // 50% de chance de roubar algo
-                    if(moedas) {
-                        await ctx.moverItem(moedas, { onde: this, quantidade: moedas.item.quantidade });
-                        
-                        ctx.escrevaln("O ladrão vê que você tem moedas e rapidamente as rouba de você. Você se pergunta porque não as guardou em algum lugar seguro...");
-                    } else {
-                        const itemQualquer = ctx.jogador.itens.at(0);
-                        if(itemQualquer) {
-                            await ctx.moverItem(itemQualquer, { onde: this, quantidade: itemQualquer.item.quantidade });
-                            ctx.escrevaln(`O ladrão vê que você não tem moedas, mas rouba seu ${itemQualquer.item.nome}.`);
-                        } else {
-                            const itemPresente = this.itens.filter(i => i.item.nome !== itensPadrao.Moedas.nome).at(0);
-                            if(itemPresente && Math.random() < 0.10) { // 10% de chance de te dar algo
-                                await ctx.moverItem(itemPresente, { onde: ctx.jogador, quantidade: 1 });
-                                ctx.escrevaln(`O ladrão, vendo o quão miserável você é, decide lhe dar um ${itemPresente.item.nome} (Que roubou de alguém) antes de ir embora.`);
-                            } else {
-                                ctx.escrevaln("O ladrão olha para você, mas vê que você não tem nada de valor.");
-                            }
-                        }
-                    }
-                } else {
-                    ctx.escreva("Mas parece que estava só de passagem.");
+                if(!this.iraRoubar(ctx.jogador.entidade.username!)) {
+                    ctx.escrevaln("O ladrão foi embora.");
+                    await ctx.alterarEntidade(this, { 
+                        onde: proximoDestino
+                    });
+                    return;
                 }
 
-                await ctx.alterarEntidade(this, { onde: possiveisDestinos[Math.floor(Math.random() * possiveisDestinos.length)] });
+                ctx.escreva("O ladrão se aproxima...");
+                if(moedas) {
+                    await ctx.moverItem(moedas, { onde: this, quantidade: moedas.item.quantidade });
+                    
+                    ctx.escrevaln(" ele vê que você tem moedas e rapidamente as rouba de você. Você se pergunta porque não as guardou em algum lugar seguro...");
+                } else {
+                    const itemQualquer = ctx.jogador.itens.at(0);
+                    if(itemQualquer) {
+                        await ctx.moverItem(itemQualquer, { onde: this, quantidade: itemQualquer.item.quantidade });
+                        ctx.escrevaln(` ele vê que você não tem moedas, mas rouba seu ${itemQualquer.item.nome}.`);
+                    } else {
+                        const itemPresente = this.itens.filter(i => i.item.nome !== itensPadrao.Moedas.nome).at(0);
+                        if(itemPresente && Math.random() < 0.10) { // 10% de chance de te dar algo
+                            await ctx.moverItem(itemPresente, { onde: ctx.jogador, quantidade: 1 });
+                            ctx.escrevaln(` vendo o quão miserável você é, decide lhe dar um ${itemPresente.item.nome} (Que roubou de alguém) antes de ir embora.`);
+                        } else {
+                            ctx.escrevaln(" ele olha para você, mas vê que você não tem nada de valor.");
+                        }
+                    }
+                }
+
+                await ctx.alterarEntidade(this, { 
+                    onde: proximoDestino,
+                    estado: {
+                        roubouEm: Date.now(),
+                        roubouDe: ctx.jogador.entidade.username!
+                    }
+                });                
             },
             "OI": () => {
                 return "O ladrão olha para você desconfiado e não responde.";

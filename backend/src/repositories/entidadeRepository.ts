@@ -29,11 +29,12 @@ export class EntidadeRepository {
         return result[0];
     }
 
-    static async moveParaSalaNome(db: DatabaseType, entidadeId: string, salaNome: string) {
+    static async moveParaSalaNome(db: DatabaseType, entidadeId: string, salaNome: string, estado?: Estado | null) {
         const result = await db.update(tableEntidades)
         .set({ 
             ondeId: tableSalas.id,
             atualizadoEm: sql<Date>`NOW()`,
+            estado: estado && Object.keys(estado).length === 0 ? null : estado,
         })
         .from(tableSalas)
         .where(and(eq(tableEntidades.id, entidadeId), eq(tableSalas.nome, salaNome)))

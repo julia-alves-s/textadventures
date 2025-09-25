@@ -1,8 +1,9 @@
 import { optionsPrompt, passwordPrompt, prompt, termPrint } from "../terminal";
 import { APIError, fetchClient, type RespostaEntidades, type RespostaItens, type RespostaJogoInfo, type RespostaSala, type RespostaSituacao } from "../utils/fetchApi";
 import { CommandParser, ParserError } from "../utils/commandParser";
-import { Acao, type AcaoValue, acoesConfig } from "../utils/comandoConfig";
+import { Acao, type AcaoValue, acoesConfig, DIRECOES } from "../utils/comandoConfig";
 import anyAscii from "any-ascii";
+import { chalk } from "../utils/chalk";
 
 type ComponenteAtualizavel = { id: string, atualizadoEm: string };
 function mudouAlgo(_obj1: undefined | null | ComponenteAtualizavel | ComponenteAtualizavel[], _obj2?: null | ComponenteAtualizavel | ComponenteAtualizavel[]) {
@@ -21,22 +22,36 @@ function mudouAlgo(_obj1: undefined | null | ComponenteAtualizavel | ComponenteA
     return false;
 }
 
+// https://hexdocs.pm/color_palette/ansi_color_codes.html
+const cor = {
+    texto: chalk.ansi256(248),
+    descricao: chalk.reset,
+    resposta: chalk.red,
+    quantidade: chalk.ansi256(40),
+    item: chalk.ansi256(28),
+    entidade: chalk.ansi256(28),
+    acao: chalk.ansi256(165),
+};
+
 function descreverTudo(situacao: RespostaSituacao, situacaoAnterior?: Partial<RespostaSituacao> | null) {
     const { resposta, sala, jogador } = situacao;
 
-    termPrint(resposta);
+    if(resposta)
+    termPrint(cor.resposta(resposta));
 
     const acoes = new Set<string>();
 
     let mudouSala = sala.id !== situacaoAnterior?.sala?.id;
     if(mudouSala || sala.descricao !== situacaoAnterior?.sala?.descricao) {
-        termPrint(sala.descricao?.trim() || "");
+        termPrint(cor.descricao(sala.descricao?.trim() || ""));
     }
 
+    let voceVeAqui = false;
     if(sala.itens && sala.itens.length > 0 && (mudouSala || mudouAlgo(sala.itens, situacaoAnterior?.sala?.itens))) {
-        termPrint("Você vê aqui:");
+        voceVeAqui = true;
+        termPrint(cor.texto("Você vê aqui:"));
         for(let item of sala.itens) {
-            termPrint(`  ${item.quantidade} ${item.descricao?.trim()}`);
+            termPrint(`  ${cor.quantidade(item.quantidade)} ${cor.item(item.descricao?.trim())}`);
             if(item.acoes && item.acoes.length > 0) {
                 item.acoes.forEach(a => acoes.add(a));
             }
@@ -45,16 +60,18 @@ function descreverTudo(situacao: RespostaSituacao, situacaoAnterior?: Partial<Re
 
     const entidades = sala.entidades;
     if(entidades && entidades.length > 0 && (mudouSala || mudouAlgo(entidades, situacaoAnterior?.sala?.entidades))) {
-        termPrint("está aqui:");
+        if(!voceVeAqui) {
+            termPrint(cor.texto("Você vê aqui:"));
+        }
         for(let entidade of entidades) {
-            termPrint(`  ${entidade.descricao?.trim()}`);
+            termPrint(`  ${cor.entidade(entidade.descricao?.trim())}`);
             if(entidade.acoes && entidade.acoes.length > 0) {
                 entidade.acoes.forEach(a => acoes.add(a));
             }
             if(entidade.itens && entidade.itens.length > 0) {
-                termPrint("  que contém:");
+                termPrint(cor.texto("  que contém:"));
                 for(let item of entidade.itens) {
-                    termPrint(`     ${item.quantidade} ${item.descricao?.trim() || item.nome}`);
+                    termPrint(`     ${cor.quantidade(item.quantidade)} ${cor.item(item.descricao?.trim() || item.nome)}`);
                     if(item.acoes && item.acoes.length > 0) {
                         item.acoes.forEach(a => acoes.add(a));
                     }
@@ -65,29 +82,59 @@ function descreverTudo(situacao: RespostaSituacao, situacaoAnterior?: Partial<Re
     
     if(mudouAlgo(jogador.itens, situacaoAnterior?.jogador?.itens)) {
         if(jogador.itens && jogador.itens.length > 0) {
-            termPrint("Na sua mochila você tem:");
+            termPrint(cor.texto("Na sua mochila você tem:"));
             for(let item of jogador.itens) {
-                termPrint(`  ${item.quantidade} ${item.descricao?.trim() || item.nome}`);
+                termPrint(`  ${cor.quantidade(item.quantidade)} ${cor.item(item.descricao?.trim() || item.nome)}`);
                 if(item.acoes && item.acoes.length > 0) {
                     item.acoes.forEach(a => acoes.add(a));
                 }
             }
         } else {
-            termPrint("Sua mochila está vazia.");
+            termPrint(cor.texto("Sua mochila está vazia."));
         }
     }
+    if(mudouSala && sala.acoes && sala.acoes.length > 0) {
+        sala.acoes.forEach(a => acoes.add(a));
+    }
 
-    if(mudouSala) {
-        if(sala.acoes && sala.acoes.length > 0) {
-            termPrint("Direções:");
-            for(let conexao of sala.acoes) {
-                termPrint(`  ${conexao.length > 2 ? conexao.toLowerCase() : conexao}`);
+    const acoesLista = Array.from(acoes)
+        .filter(a => DIRECOES.includes(a as AcaoValue) === false)
+        .sort()
+        .map(a => cor.acao(a.length > 2 ? a.toLowerCase() : a));
+
+    // Aqui lista ações do que foi descrito apenas
+    if(acoesLista.length > 0) {
+        termPrint(cor.texto("Ações:"), acoesLista.join(cor.texto(", ")));
+    }
+
+    // Agora lista todas as ações de movimento possíveis
+    const mapAcoes: Partial<Record<AcaoValue, boolean | undefined>> = {};    
+    for(let acao of sala.acoes || []) {
+        mapAcoes[acao as AcaoValue] = true;
+    }
+    for(let item of sala.itens || []) {
+        for(let acao of item.acoes || []) {
+            mapAcoes[acao as AcaoValue] = true;
+        }
+    }
+    for(let entidade of sala.entidades || []) {
+        for(let acao of entidade.acoes || []) {
+            mapAcoes[acao as AcaoValue] = true;
+        }
+        for(let item of entidade.itens || []) {
+            for(let acao of item.acoes || []) {
+                mapAcoes[acao as AcaoValue] = true;
             }
         }
     }
-    if(acoes.size > 0) {
-        termPrint("Ações:", Array.from(acoes).map(a => a.length > 2 ? a.toLowerCase() : a).sort().join(", "));
+    for(let item of jogador.itens || []) {
+        for(let acao of item.acoes || []) {
+            mapAcoes[acao as AcaoValue] = true;
+        }
     }
+    termPrint(` ${mapAcoes[Acao.NO] ? cor.acao("NO") : "  "} ${mapAcoes[Acao.N] ? cor.acao("N") : " "} ${mapAcoes[Acao.NE] ? cor.acao("NE") : "  "} ${mapAcoes[Acao.Subir] ? cor.acao("subir") : " "}`);
+    termPrint(` ${mapAcoes[Acao.O] ? cor.acao("O ") : "  "  } ${cor.resposta("✢")} ${mapAcoes[Acao.L] ? cor.acao(" L") : "  "} ${mapAcoes[Acao.Entrar] ? cor.acao("entrar") : " "}  ${mapAcoes[Acao.Sair] ? cor.acao("sair") : " "}`);
+    termPrint(` ${mapAcoes[Acao.SO] ? cor.acao("SO") : "  "} ${mapAcoes[Acao.S] ? cor.acao("S") : " "} ${mapAcoes[Acao.SE] ? cor.acao("SE") : "  "} ${mapAcoes[Acao.Descer] ? cor.acao("descer") : " "}`);
 
     return {
         resposta,
@@ -133,11 +180,15 @@ const fazerLogin = async () => {
 
 export const desambiguar = async (
     mensagem: string,
-    acao: string, 
+    acao: string | null, 
     alvos: Record<string, { sinonimos: string[], ref: RespostaItens | RespostaEntidades }>, 
     alvosMatch: {match: string, confidence: number}[],
     arg: number
 ) => {
+    if(!acao) {
+        return { item: undefined, entidade: undefined };
+    }
+
     let item: RespostaItens[] = [];
     let entidade: RespostaEntidades[] = [];
     for(let result of alvosMatch) {
@@ -155,26 +206,25 @@ export const desambiguar = async (
         if(!(!acao || acoesConfig[acao as AcaoValue].args >= arg)) {
             return { item: undefined, entidade: undefined };
         }
-        termPrint(mensagem);
+        termPrint(cor.texto(mensagem));
         let k = 0;
         let options = [];
         for(; k < item.length; k++) {
             const i = item[k];
             let letter = String.fromCharCode(k + "A".charCodeAt(0));
-            termPrint(`  ${letter}: ${i.quantidade} ${i.descricao?.trim() || ""} (${i.acoes?.join(", ")})`);
+            termPrint(`  ${cor.texto(letter)}: ${cor.quantidade(i.quantidade)} ${cor.item(i.descricao?.trim() || "")} (${i.acoes?.map(a => cor.acao(a.toLowerCase()))?.join(cor.texto(", "))})`);
             options.push(letter);
         }
         for(; k < item.length + entidade.length; k++) {
             const e = entidade[k - item.length];
             let letter = String.fromCharCode(k + "A".charCodeAt(0));
-            termPrint(`  ${letter}: ${e.descricao?.trim() || ""} (${e.acoes?.join(", ")})`);
+            termPrint(`  ${cor.texto(letter)}: ${cor.item(e.descricao?.trim() || "")} (${e.acoes?.map(a => cor.acao(a.toLowerCase()))?.join(cor.texto(", "))})`);
             options.push(letter);
         }
         const escolha = (await optionsPrompt(options, "Escolha um: ")).trim();
         const escolhaNum = escolha.toUpperCase().charCodeAt(0) - "A".charCodeAt(0);
         if(isNaN(escolhaNum) || escolhaNum < 0) {
-            termPrint("Escolha inválida.");
-            return {item: undefined, entidade: undefined };
+            throw new ParserError("Escolha inválida.");
         }
 
         if(escolhaNum < item.length) {
@@ -184,8 +234,11 @@ export const desambiguar = async (
             entidade = [entidade[escolhaNum - item.length]];
             item = [];
         } else {
-            termPrint("Escolha inválida.");
-            return {item: undefined, entidade: undefined };
+            throw new ParserError("Escolha inválida.");
+        }
+    } else if ((item.length + entidade.length) === 1) {
+        if(alvosMatch.length > 1) {
+            termPrint(cor.texto(`(${item.at(0)?.nome || entidade.at(0)?.nome})`));
         }
     }
 
@@ -246,7 +299,7 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
                 termPrint("  colocar no bau 100 moedas");
                 termPrint("");
                 termPrint("  mochila - para ver o que você está carregando");
-                termPrint("  olhar - para olhar ao redor novamente");
+                termPrint("  olhar - para olhar ao redor novamente ou olhar algo específico");
                 termPrint("  ajuda - para ver esta mensagem novamente");
                 termPrint("  logout - para sair do jogo.");
                 termPrint("");
@@ -303,17 +356,17 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
             console.error(err);
 
             if(err instanceof ParserError) {
-                termPrint(err.message);
+                termPrint(chalk.red(err.message));
                 continue;
             }
 
             if(err instanceof APIError) {
-                termPrint((err.json as any)?.message);
+                termPrint(chalk.red((err.json as any)?.message));
                 if((err.json as any)?.ok === true) {
                     continue;
                 }
             } else {
-                termPrint("Erro:", (err as any)?.message);
+                termPrint(chalk.red("Erro:"), chalk.red((err as any)?.message));
             }
             
             // Pergunta se quer tentar novamente

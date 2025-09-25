@@ -355,7 +355,7 @@ export class Contexto {
             }
 
             if(onde && "nome" in onde) {
-                const { entidade, sala } = (await EntidadeRepository.moveParaSalaNome(db, ent.id, onde.nome)) || {};
+                const { entidade, sala } = (await EntidadeRepository.moveParaSalaNome(db, ent.id, onde.nome, estado)) || {};
                 if(!entidade || !sala) {
                     throw new JogoError("Erro ao mover para a sala " + onde.nome);
                 }

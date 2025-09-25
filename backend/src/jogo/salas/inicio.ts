@@ -14,7 +14,8 @@ class Quarto extends SalaBase {
         item: itensPadrao.Lampiao, 
         quantidade: 1,
         estadoInicial: {
-            luz: false
+            luz: false,
+            cargas: 5
         }
     }, {
         item: itensPadrao.Papel, 
@@ -44,6 +45,7 @@ class Quarto extends SalaBase {
                 } else {
                     ctx.escrevaln("Você deita e dorme... **Zzzzzzz**");
                     ctx.escrevaln("...");
+                    ctx.escrevaln("Você sabia que você era sonâmbulo?");
                     return Labirinto9;
                 }                
             }
@@ -107,7 +109,7 @@ export class SalaInicio extends SalaBase {
     static estadoInicial = (): Estado => ({ luz: true });
 
     descricao(ctx: Contexto) {
-        return "Você acorda em uma sala sem janelas (subsolo?), você não sabe porquê está aqui, ao norte há um quarto, Ao oeste há uma porta";
+        return "Você acorda em uma sala sem janelas (subsolo?), você não sabe porquê está aqui, ao norte há um quarto, Ao oeste há uma porta e ao leste uma passagem levando à escuridão";
     }
 
     acoes(ctx: Contexto): AcoesCallbackResult {
@@ -249,7 +251,7 @@ class Labirinto3 extends Labirinto {
     static nome = "Labirinto3";
     static entidadesIniciais = (): EntidadeInicial[] => [{
         entidade: EntidadePoco,
-        nome: "PocoLabirinto"
+        nome: "Poco Labirinto"
     }];
     static estadoInicial = (): Estado => ({ luz: true });
 
@@ -283,7 +285,7 @@ class SalaPoco extends SalaBase {
     }];
     static entidadesIniciais = (): EntidadeInicial[] => [{
         entidade: EntidadePoco,
-        ref: { sala: Labirinto3, nome: "PocoLabirinto" }
+        ref: { sala: Labirinto3, nome: "Poco Labirinto" }
     }];
 
     descricao(ctx: Contexto) {
