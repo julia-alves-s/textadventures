@@ -20,7 +20,7 @@ function normalize(text: string): string {
 }
 
 export class CommandParser<T> {
-    private rawCommand: string;
+    public rawCommand: string;
     private lastArgsi: number;
     private argsi: number;
     private args: string[];

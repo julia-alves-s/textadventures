@@ -1,9 +1,10 @@
-import { optionsPrompt, passwordPrompt, prompt, termPrint } from "../terminal";
+import { optionsPrompt, passwordPrompt, prompt, termPrint, termPrintAbovePrompt } from "../terminal";
 import { APIError, fetchClient, type RespostaEntidades, type RespostaItens, type RespostaJogoInfo, type RespostaSala, type RespostaSituacao } from "../utils/fetchApi";
 import { CommandParser, ParserError } from "../utils/commandParser";
 import { Acao, type AcaoValue, acoesConfig, DIRECOES } from "../utils/comandoConfig";
 import anyAscii from "any-ascii";
 import { chalk } from "../utils/chalk";
+import { enviarRealtimeMensagem, inicializarRealtime } from "../utils/realtime";
 
 type ComponenteAtualizavel = { id: string, atualizadoEm: string };
 function mudouAlgo(_obj1: undefined | null | ComponenteAtualizavel | ComponenteAtualizavel[], _obj2?: null | ComponenteAtualizavel | ComponenteAtualizavel[]) {
@@ -245,7 +246,13 @@ export const desambiguar = async (
     return { item: item.at(0), entidade: entidade.at(0) };
 }
 
+const chatCallback = (global: boolean, username: string, mensagem: string) => {
+    console.log("Chat callback:", { global, username, mensagem });
+    termPrintAbovePrompt(global ? cor.resposta("[Global]") : "", cor.entidade(username) + (mensagem ? cor.texto(": ")+cor.descricao(mensagem) : ""));
+};
+
 export const principal = async (jogoInfo?: RespostaJogoInfo) => {
+    let ultimaSalaId: string | null = null;
     let situacao: RespostaSituacao | null = null;
     let exibirBannerOla = true;
     while(true) {
@@ -263,6 +270,8 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
                         termPrint(`${jogoInfo.usuariosOnline} usuários online agora, ${jogoInfo.usuariosCadastrados} cadastrados.`);
                     }
                     termPrint("");
+                    inicializarRealtime(jogoInfo.jogador.ondeId, chatCallback);
+                    enviarRealtimeMensagem(jogoInfo.jogador.ondeId, true, jogoInfo.jogador.username!+" entrou no jogo.", null);
                     exibirBannerOla = false;
                 }
                 let salaId = situacao?.sala?.id || situacao?.jogador?.ondeId || jogoInfo?.jogador?.ondeId;
@@ -270,6 +279,12 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
             }
 
             let { sala, jogador } = situacao;
+            inicializarRealtime(sala.id, chatCallback);
+
+            if(sala.id !== ultimaSalaId) {
+                enviarRealtimeMensagem(sala.id, false, jogador.username!+" aparece na sala.", null);
+            }
+            ultimaSalaId = sala.id;
             
             const alvos = CommandParser.buildContext(situacao);
             const parser = new CommandParser(await prompt(jogador.username+"> "), { alvos });
@@ -277,7 +292,7 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
 
             const alvoA = await desambiguar("Seja mais específico: ", acao, alvos, _alvoA, 1);
             const alvoB = await desambiguar("Com oq? ", acao, alvos, _alvoB, 2);
-            let texto = resto?.trim() || undefined;
+            let texto = resto?.toLowerCase().trim() || undefined;
 
             if(acao && acoesConfig[acao].texto === true && !texto) {
                 texto = anyAscii((await prompt() || "").replaceAll(/[\r\n\t]/g," ")).trim();
@@ -335,6 +350,18 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
                 termPrint("Até mais!");
                 break;
             } else {
+                if(acao === Acao.Falar) {
+                    enviarRealtimeMensagem(sala.id, false, jogador.username!, texto!);
+                    chatCallback(false, jogador.username!, texto!);
+                    continue;
+                } else if(acao === Acao.Gritar) {
+                    enviarRealtimeMensagem(sala.id, true, jogador.username!, texto!);
+                    chatCallback(true, jogador.username!, texto!);
+                    continue;
+                } else {
+                    enviarRealtimeMensagem(sala.id, false, jogador.username!, parser.rawCommand);
+                }
+                
                 if(alvoA.item) {
                     situacao = descreverTudo(await fetchClient.itemAcao(situacao.sala.id, alvoA.item.id, acao, { quantidade, item: alvoB.item?.id, entidade: alvoB.entidade?.id, texto: texto || undefined }), situacao);
                 } else if(alvoA.entidade) {

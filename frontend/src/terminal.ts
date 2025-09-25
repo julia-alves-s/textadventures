@@ -40,12 +40,16 @@ export function termClear() {
 
 let optionsMode = false;
 let options: string[] = [];
+let lastPromptStr: unknown[] = [];
 let waitingPrompt: ((input: string | Error) => void) | null = null;
 export function prompt(...str: unknown[]): Promise<string> {
     command = optionsMode ? (options[0] || "") : "";
+    lastPromptStr = [...str];
+
     const last = str.pop() || "> ";
-    termPrint(...str);
-    
+    if(str.length > 0) {
+        termPrint(...str);
+    }    
     term.write(""+last+command);
     return new Promise<string>((resolve, reject) => {
         waitingPrompt = (input: string | Error) => {
@@ -80,6 +84,26 @@ export async function optionsPrompt(_options: string[], ...str: unknown[]) {
         optionsMode = false;
         options = [];
     }
+}
+
+export function termPrintAbovePrompt(...str: unknown[]) {
+    if(waitingPrompt === null) {
+        termPrint(...str);
+        return;
+    }
+    // Move cursor to the beginning of the line
+    term.write('\r');
+    // Clear the line
+    term.write('\x1b[2K');
+    // Print the message
+    termPrint(...str);
+    // Reprint the prompt and command
+    const promptBefore = [...lastPromptStr];
+    const last = promptBefore.pop() || "> ";
+    if(promptBefore.length > 0) {
+        termPrint(...promptBefore);
+    }
+    term.write(""+last+command);
 }
 
 let command = '';
