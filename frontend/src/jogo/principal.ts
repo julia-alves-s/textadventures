@@ -3,8 +3,8 @@ import { APIError, fetchClient, type RespostaEntidades, type RespostaItens, type
 import { CommandParser, ParserError } from "../utils/commandParser";
 import { Acao, type AcaoValue, acoesConfig, DIRECOES } from "../utils/comandoConfig";
 import anyAscii from "any-ascii";
-import { chalk } from "../utils/chalk";
-import { enviarRealtimeMensagem, inicializarRealtime } from "../utils/realtime";
+import { getChalk } from "../utils/chalk";
+import { desconectarRealtime, enviarRealtimeMensagem, inicializarRealtime } from "../utils/realtime";
 
 type ComponenteAtualizavel = { id: string, atualizadoEm: string };
 function mudouAlgo(_obj1: undefined | null | ComponenteAtualizavel | ComponenteAtualizavel[], _obj2?: null | ComponenteAtualizavel | ComponenteAtualizavel[]) {
@@ -24,14 +24,15 @@ function mudouAlgo(_obj1: undefined | null | ComponenteAtualizavel | ComponenteA
 }
 
 // https://hexdocs.pm/color_palette/ansi_color_codes.html
+let chalk = getChalk(true);
 const cor = {
-    texto: chalk.ansi256(248),
-    descricao: chalk.reset,
-    resposta: chalk.red,
-    quantidade: chalk.ansi256(40),
-    item: chalk.ansi256(28),
-    entidade: chalk.ansi256(28),
-    acao: chalk.ansi256(165),
+    texto: (...args: unknown[]) => chalk.ansi256(248)(...args),
+    descricao: (...args: unknown[]) => chalk.reset(...args),
+    resposta: (...args: unknown[]) => chalk.red(...args),
+    quantidade: (...args: unknown[]) => chalk.ansi256(40)(...args),
+    item: (...args: unknown[]) => chalk.ansi256(28)(...args),
+    entidade: (...args: unknown[]) => chalk.ansi256(28)(...args),
+    acao: (...args: unknown[]) => chalk.ansi256(165)(...args),
 };
 
 function descreverTudo(situacao: RespostaSituacao, situacaoAnterior?: Partial<RespostaSituacao> | null) {
@@ -247,14 +248,14 @@ export const desambiguar = async (
 }
 
 const chatCallback = (global: boolean, username: string, mensagem: string) => {
-    console.log("Chat callback:", { global, username, mensagem });
     termPrintAbovePrompt(global ? cor.resposta("[Global]") : "", cor.entidade(username) + (mensagem ? cor.texto(": ")+cor.descricao(mensagem) : ""));
 };
 
 export const principal = async (jogoInfo?: RespostaJogoInfo) => {
-    let ultimaSalaId: string | null = null;
     let situacao: RespostaSituacao | null = null;
     let exibirBannerOla = true;
+    let chatAtivo = true;
+    let coresAtivas = true;
     while(true) {
         try {
             if(!jogoInfo || !jogoInfo.jogador || !situacao || !situacao.sala || !situacao.jogador) {
@@ -269,9 +270,8 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
                     if(jogoInfo.usuariosCadastrados !== undefined && jogoInfo.usuariosOnline !== undefined) {
                         termPrint(`${jogoInfo.usuariosOnline} usuários online agora, ${jogoInfo.usuariosCadastrados} cadastrados.`);
                     }
+                    termPrint(chalk.yellow("Digite 'ajuda' ou '?' para ver o que você pode fazer."));
                     termPrint("");
-                    inicializarRealtime(jogoInfo.jogador.ondeId, chatCallback);
-                    enviarRealtimeMensagem(jogoInfo.jogador.ondeId, true, jogoInfo.jogador.username!+" entrou no jogo.", null);
                     exibirBannerOla = false;
                 }
                 let salaId = situacao?.sala?.id || situacao?.jogador?.ondeId || jogoInfo?.jogador?.ondeId;
@@ -279,12 +279,9 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
             }
 
             let { sala, jogador } = situacao;
-            inicializarRealtime(sala.id, chatCallback);
-
-            if(sala.id !== ultimaSalaId) {
-                enviarRealtimeMensagem(sala.id, false, jogador.username!+" aparece na sala.", null);
+            if(chatAtivo) {
+                inicializarRealtime(jogador.username!, sala.id, chatCallback);
             }
-            ultimaSalaId = sala.id;
             
             const alvos = CommandParser.buildContext(situacao);
             const parser = new CommandParser(await prompt(jogador.username+"> "), { alvos });
@@ -306,16 +303,20 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
                     situacao = descreverTudo(await fetchClient.salaOlhar(situacao.sala.id), { ...situacao, sala: undefined});
                 }
             } else if(acao === Acao.Ajuda) {
-                termPrint("Você pode usar comandos como:");
+                termPrint("De acordo com a sala que estiver, haverá ações:");
                 termPrint("  norte");
                 termPrint("  abrir porta");
                 termPrint("  pegar 1 pedra");
                 termPrint("  largar pedra");
                 termPrint("  colocar no bau 100 moedas");
-                termPrint("");
+                termPrint("Também, a qualquer momento poderá:");
                 termPrint("  mochila - para ver o que você está carregando");
                 termPrint("  olhar - para olhar ao redor novamente ou olhar algo específico");
                 termPrint("  ajuda - para ver esta mensagem novamente");
+                termPrint("  falar - fale com quem está na mesma sala que você");
+                termPrint("  gritar - fale com todos no jogo (globalmente)");
+                termPrint("  chat - para ativar/desativar o chat");
+                termPrint("  cores - para ativar/desativar cores");
                 termPrint("  logout - para sair do jogo.");
                 termPrint("");
                 const resposta = await prompt("Deseja ver a lista completa de ações? (S/N) ");
@@ -349,18 +350,40 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
                 await fetchClient.logout();
                 termPrint("Até mais!");
                 break;
-            } else {
-                if(acao === Acao.Falar) {
-                    enviarRealtimeMensagem(sala.id, false, jogador.username!, texto!);
-                    chatCallback(false, jogador.username!, texto!);
-                    continue;
-                } else if(acao === Acao.Gritar) {
-                    enviarRealtimeMensagem(sala.id, true, jogador.username!, texto!);
+            } else if(acao === Acao.Gritar) {
+                if(chatAtivo) {
+                    enviarRealtimeMensagem(true, jogador.username!, texto!);
                     chatCallback(true, jogador.username!, texto!);
-                    continue;
                 } else {
-                    enviarRealtimeMensagem(sala.id, false, jogador.username!, parser.rawCommand);
+                    termPrint("Chat desativado. Use o comando 'chat' para ativar novamente.");
                 }
+            } else if(acao === Acao.Falar) {
+                if(chatAtivo) {
+                    enviarRealtimeMensagem(false, jogador.username!, texto!);
+                    chatCallback(false, jogador.username!, texto!);
+                } else {
+                    termPrint("Chat desativado. Use o comando 'chat' para ativar novamente.");
+                }
+            } else if(acao === Acao.Chat) {
+                chatAtivo = !chatAtivo;
+                if(!chatAtivo) {
+                    termPrint("Chat desativado.");
+                    desconectarRealtime();
+                } else {
+                    termPrint("Chat ativado.");
+                }
+            } else if(acao === Acao.Cores) {
+                coresAtivas = !coresAtivas;
+                if(coresAtivas) {
+                    chalk = getChalk(true);
+                    termPrint(chalk.green("Cores ativadas."));
+                } else {
+                    chalk = getChalk(false);
+                    termPrint("Cores desativadas.");
+                }
+            } else {
+                // Mensagem da ação para outros na mesma sala
+                if(chatAtivo) enviarRealtimeMensagem(false, jogador.username!, parser.rawCommand);  
                 
                 if(alvoA.item) {
                     situacao = descreverTudo(await fetchClient.itemAcao(situacao.sala.id, alvoA.item.id, acao, { quantidade, item: alvoB.item?.id, entidade: alvoB.entidade?.id, texto: texto || undefined }), situacao);
@@ -403,4 +426,5 @@ export const principal = async (jogoInfo?: RespostaJogoInfo) => {
             }
         }
     }
+    desconectarRealtime();
 };

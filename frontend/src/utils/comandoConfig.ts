@@ -65,11 +65,13 @@ export const Acao = {
     Contracoes: "CONTR",
 
     Usar: "USAR",
-    Chao: "CHAO",
 
     // Só no frontend
+    Chao: "CHAO",
     Ajuda: "AJUDA",
     Logout: "LOGOUT",
+    Cores: "CORES",
+    Chat: "CHAT"
 } as const;
 export type AcaoValue = typeof Acao[keyof typeof Acao];
 
@@ -141,10 +143,12 @@ export const acoesConfig: Record<AcaoValue, {sinonimos: string[], args: number, 
     
     [Acao.Usar]: { sinonimos: ["USAR", "USANDO", "COM", "ATRAVES", "SEGURANDO"], args: 2, maxArgs: 2 }, // <CMD> <#1,#2,#2>* <OBJ> <#1,#2,#2,COM>* <OBJ>
 
+    // Só no frontend
     [Acao.Chao]: { sinonimos: ["CHAO", "PISO", "TERRA", "SOLO"], args: 0, maxArgs: 0 },
-
     [Acao.Ajuda]: { sinonimos: ["?", "AJUDA", "HELP", "SOCORRO"], args: 0, maxArgs: 0 },
     [Acao.Logout]: { sinonimos: ["LOGOUT", "EXIT", "QUIT", "ABANDONAR", "DESLOGAR", "TERMINAR", "ENCERRAR"], args: 0, maxArgs: 0 },
+    [Acao.Cores]: { sinonimos: ["CORES"], args: 0, maxArgs: 0 },
+    [Acao.Chat]: { sinonimos: ["CHAT"], args: 0, maxArgs: 0 },
 };
 
 export const DIRECOES: string[] = [Acao.N, Acao.S, Acao.L, Acao.O, Acao.NE, Acao.NO, Acao.SE, Acao.SO, Acao.Subir, Acao.Descer, Acao.Entrar, Acao.Sair];
