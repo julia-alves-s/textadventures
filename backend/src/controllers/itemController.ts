@@ -2,7 +2,8 @@ import { type RequestHandler } from "express";
 import { itemDocs } from "../docs/itemDocs.ts";
 import { ControllerBase } from "./ControllerBase.ts";
 import { execArrowOrValue } from "../jogo/types.ts";
-import type { AcaoExtraPopulado, SalaBase, SalaBaseStatic } from "../jogo/salas/base.ts";
+import type { SalaBase, SalaBaseStatic } from "../jogo/salas/base.ts";
+import type { AcaoExtraPopulado } from "../jogo/objetoJogo.ts";
 
 export class ItemController extends ControllerBase {
     static acaoItem: RequestHandler = async (req, res) => {

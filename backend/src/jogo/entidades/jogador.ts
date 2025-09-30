@@ -1,6 +1,6 @@
 import type { Contexto } from "../contexto.ts";
 import type { ItemBase } from "../itens/base.ts";
-import type { AcaoExtraPopulado, AcoesCallbackResult } from "../salas/base.ts";
+import type { AcaoExtraPopulado, AcoesCallbackResult } from "../objetoJogo.ts";
 import { EntidadeBase } from "./base.ts";
 
 export class EntidadeJogador extends EntidadeBase {
@@ -24,7 +24,7 @@ export class EntidadeJogador extends EntidadeBase {
                     if(!item) {
                         return "Deve especificar o que quer dar.";
                     }
-                    if(!(item.onde instanceof EntidadeBase && item.onde.entidade.id === ctx.jogador.entidade.id)) {
+                    if(!item.estaNaMochila(ctx)) {
                         return "Você não tem esse item.";
                     }
                     await ctx.moverItem(item, { 
@@ -40,19 +40,15 @@ export class EntidadeJogador extends EntidadeBase {
     }
 
     estaVisivel(): boolean {
-        return Date.now() - new Date(this.entidade.atualizadoEm).getTime() <= 1000 * 60 * 10;
-    }
-
-    getFilhosVisiveis(): { itens: ItemBase[]; filhos: EntidadeBase[]; } {
-        if(!this.outroJogador) {
-            return super.getFilhosVisiveis();
+        if(this.outroJogador) {
+            return Date.now() - new Date(this.entidade.atualizadoEm).getTime() <= 1000 * 60 * 10;
         } else {
-            return { itens: [], filhos: [] };
+            return true;
         }
     }
-
-    terminouTutorial(): boolean {
-        return this.entidade.estado?.terminouTutorial === true;
+    
+    filhosVisiveis(): boolean {
+        return this.outroJogador === false;
     }
 
     itensSeguros() {
@@ -65,6 +61,10 @@ export class EntidadeNPC extends EntidadeBase {
 
     descricao(ctx: Contexto) {
         return this.entidade.nome || "Alguém desconhecido.";
+    }
+
+    filhosVisiveis(): boolean {
+        return false;
     }
 
     itensSeguros(): boolean {

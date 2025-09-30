@@ -4,9 +4,9 @@ import { gerarPilhaId, getEntidadeConfig, getItemConfig, getSalaConfig } from ".
 
 import { SalaRepository } from "../repositories/salaRepository.ts";
 import { EntidadeJogador } from "./entidades/jogador.ts";
-import type { AcaoExtraPopulado, AcoesCallbackResult, SalaBase, SalaBaseStatic } from "./salas/base.ts";
+import type { SalaBase, SalaBaseStatic } from "./salas/base.ts";
 import type { ItemBase, ItemBaseStatic } from "./itens/base.ts";
-import type { EntidadeBase } from "./entidades/base.ts";
+import { EntidadeBase } from "./entidades/base.ts";
 import { EntidadeRepository } from "../repositories/entidadeRepository.ts";
 import type { Sala } from "../db/salaSchema.ts";
 import type { Item } from "../db/itemSchema.ts";
@@ -16,6 +16,7 @@ import type { Entidade } from "../db/entidadeSchema.ts";
 import e from "express";
 import { Acao, type AcaoValue } from "./comandos/comandoConfig.ts";
 import { RevokeSessionError } from "../middlewares/authMiddleware.ts";
+import type { AcaoExtraPopulado, AcoesCallbackResult } from "./objetoJogo.ts";
 
 // Serve como service que interage com o banco de dados, e guarda o estado atual do jogo
 export class Contexto {
@@ -83,21 +84,31 @@ export class Contexto {
     }
 
     getEntidadeVisivel(entidadeId: string): EntidadeBase | undefined {
+        let achouEntidade: EntidadeBase | undefined = undefined;
         // 1 Filhos na mochila (Não implementado sempre vazio...)
-        const { filhos } = this.jogador.getFilhosVisiveis();
-        let achouEntidade = filhos.find(i => i.entidade.id === entidadeId);
-        
+        if(this.jogador.filhosVisiveis()) {
+            achouEntidade = this.jogador.filhos.find(f => f.estaVisivel() && f.entidade.id === entidadeId);
+
+            // 1.1 Filhos de filhos na mochila (Não implementado sempre vazio...)
+            if(!achouEntidade) {
+                for(let filho of this.jogador.filhos) {
+                    if(!filho.estaVisivel() || !filho.filhosVisiveis()) continue;
+
+                    achouEntidade = filho.filhos.find(f => f.estaVisivel() && f.entidade.id === entidadeId);
+                    if(achouEntidade) break;
+                }
+            }
+        }
         // 2. Na sala
-        if(!achouEntidade && this.sala.estaVisivel()) {
-            const { entidades } = this.sala.getFilhosVisiveis();
-            achouEntidade = entidades.find(i => i.entidade.id === entidadeId);
+        if(!achouEntidade && this.sala.estaVisivel() && this.sala.filhosVisiveis()) {
+            achouEntidade = this.sala.entidades.find(e => e.estaVisivel() && e.entidade.id === entidadeId);
+
             // 2.1 Filhos da entidade (Não implementado sempre vazio...)
             if(!achouEntidade) {
-                for(let entidade of entidades) {
-                    if(!entidade.estaVisivel()) continue;
+                for(let entidade of this.sala.entidades) {
+                    if(!entidade.estaVisivel() || !entidade.filhosVisiveis()) continue;
 
-                    const { filhos: entidadeFilhos } = entidade.getFilhosVisiveis();
-                    achouEntidade = entidadeFilhos.find(i => i.entidade.id === entidadeId);
+                    achouEntidade = entidade.filhos.find(f => f.estaVisivel() && f.entidade.id === entidadeId);
                     if(achouEntidade) break;
                 }
             }
@@ -107,41 +118,46 @@ export class Contexto {
     }
 
     getItemVisivel(itemId: string): ItemBase | undefined {
-        // 1. Mochila
-        const { itens: mochila, filhos } = this.jogador.getFilhosVisiveis();
-        let achouObjeto = mochila.find(i => i.item.id === itemId);
-        // 1.1 Filhos na mochila
-        if(!achouObjeto) {
-            for(let filho of filhos) {
-                if(!filho.estaVisivel()) continue;
+        let achouItem: ItemBase | undefined = undefined;
+        // Jogador
+        if(this.jogador.filhosVisiveis()) {
+            // 1. Mochila
+            let achouItem = this.jogador.itens.find(i => i.estaVisivel() && i.item.id === itemId);
 
-                const { itens: mochilaFilho } = filho.getFilhosVisiveis();
-                achouObjeto = mochilaFilho.find(i => i.item.id === itemId);
-                if(achouObjeto) break;
-            }
-        }
-        // 2. Chão da sala
-        if(!achouObjeto && this.sala.estaVisivel()) {
-            const { itens: itensChao, entidades } = this.sala.getFilhosVisiveis();
-            achouObjeto = itensChao.find(i => i.item.id === itemId);
-            // 2.1 Filhos no chão
-            if(!achouObjeto) {
-                for(let entidade of entidades) {
-                    if(!entidade.estaVisivel()) continue;
-                    
-                    const { itens: itensEntidade } = entidade.getFilhosVisiveis();
-                    achouObjeto = itensEntidade.find(i => i.item.id === itemId);
-                    if(achouObjeto) break;
+            // 1.1 Mochila de filhos na mochila
+            if(!achouItem) {
+                for(let filho of this.jogador.filhos) {
+                    if(!filho.estaVisivel() || !filho.filhosVisiveis()) continue;
+
+                    achouItem = filho.itens.find(i => i.estaVisivel() && i.item.id === itemId);
+                    if(achouItem) break;
                 }
             }
         }
-        
-        return achouObjeto;
+
+        // 2. Chão da sala
+        if(!achouItem && this.sala.estaVisivel() && this.sala.filhosVisiveis()) {
+            achouItem = this.sala.itens.find(i => i.estaVisivel() && i.item.id === itemId);
+
+            // 2.1 Mochila de entidades na sala
+            if(!achouItem) {
+                for(let entidade of this.sala.entidades) {
+                    if(!entidade.estaVisivel() || !entidade.filhosVisiveis()) continue;
+
+                    achouItem = entidade.itens.find(i => i.estaVisivel() && i.item.id === itemId);
+                    if(achouItem) break;
+                }
+            }
+        }
+
+        return achouItem;
     }
 
     async _descricaoItens(itens: ItemBase[]) {
         const descricaoItens = [];
         for(let i of itens) {
+            if(!i.estaVisivel()) continue;
+
             const acoes = await i._acoes(this);
             const descr = Acao.$Descricao in acoes ? await execArrowOrValue(acoes[Acao.$Descricao]) : "";
             if(descr && typeof descr === "string") {
@@ -164,15 +180,21 @@ export class Contexto {
     async _descricaoEntidades(entidades: EntidadeBase[]) {
         const descricaoEntidades = [];
         for(let e of entidades) {
+            if(!e.estaVisivel()) continue;
+
             const acoes = await e._acoes(this);
             const descr = Acao.$Descricao in acoes ? await execArrowOrValue(acoes[Acao.$Descricao]) : "";
             if(descr && typeof descr === "string") {
                 this.escrevaln(descr);
             }            
             const descricaoEntidade = this.obterTexto();
-            const { itens, filhos } = e.getFilhosVisiveis();
-            const descrItens = await this._descricaoItens(itens);
-            const descrFilhos: any = await this._descricaoEntidades(filhos);
+            //const { itens, filhos } = e.getFilhosVisiveis();
+            let descrItens;
+            let descrFilhos: any;
+            if(e.filhosVisiveis()) {
+                descrItens = await this._descricaoItens(e.itens);
+                descrFilhos = await this._descricaoEntidades(e.filhos);
+            }
             
             descricaoEntidades.push({
                 id: e.entidade.id,
@@ -182,8 +204,8 @@ export class Contexto {
                 atualizadoEm: e.entidade.atualizadoEm,
                 descricao: descricaoEntidade,
                 acoes: Object.keys(acoes).filter(a => !a.startsWith("$")),
-                itens: descrItens,
-                filhos: descrFilhos
+                itens: descrItens || [],
+                filhos: descrFilhos || []
             });
         }
         return descricaoEntidades;
@@ -209,9 +231,11 @@ export class Contexto {
             }
             descricaoSala = this.obterTexto();       
 
-            const { itens, entidades } = this.sala.getFilhosVisiveis();
-            descricaoItensNochao = await this._descricaoItens(itens);
-            descricaoEntidades = await this._descricaoEntidades(entidades.filter(e => e.entidade.id !== this.jogador.entidade.id));
+            //const { itens, entidades } = this.sala.getFilhosVisiveis();
+            if(this.sala.filhosVisiveis()) {
+                descricaoItensNochao = await this._descricaoItens(this.sala.itens);
+                descricaoEntidades = await this._descricaoEntidades(this.sala.entidades.filter(e => e.entidade.id !== this.jogador.entidade.id));
+            }
         }
 
         return {
@@ -226,8 +250,8 @@ export class Contexto {
                 atualizadoEm: this.sala.sala.atualizadoEm,
                 acoes: Object.keys(acoes).filter(a => !a.startsWith("$")),
                 descricao: descricaoSala,
-                itens: descricaoItensNochao,
-                entidades: descricaoEntidades,
+                itens: descricaoItensNochao || [],
+                entidades: descricaoEntidades || [],
             },
         };
     }

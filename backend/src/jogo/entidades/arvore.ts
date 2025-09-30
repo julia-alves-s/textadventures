@@ -1,6 +1,6 @@
 import type { Contexto } from "../contexto.ts";
 import { itensPadrao } from "../itens/inicio.ts";
-import type { AcaoExtraPopulado, AcoesCallbackResult } from "../salas/base.ts";
+import type { AcaoExtraPopulado, AcoesCallbackResult } from "../objetoJogo.ts";
 import type { Estado, MaybePromise } from "../types.ts";
 import { EntidadeBase } from "./base.ts";
 
@@ -37,16 +37,13 @@ export class EntidadeArvore extends EntidadeBase {
         }
     }
 
-    async _acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): Promise<AcoesCallbackResult> {
+    async acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): Promise<AcoesCallbackResult> {
         if(this.estaCrescida()) {
             return {
-                "CORTAR": async () => this.cortar(ctx, extra),
-                ...(await super._acoes(ctx, extra)),
+                "CORTAR": async () => this.cortar(ctx, extra)
             };
         } else {
-            return {
-                ...(await super._acoes(ctx, extra)),
-            };
+            return {};
         }
     }
 

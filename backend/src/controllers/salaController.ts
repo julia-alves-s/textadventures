@@ -2,7 +2,8 @@ import { type RequestHandler } from "express";
 import { salaDocs } from "../docs/salaDocs.ts";
 import { ControllerBase } from "./ControllerBase.ts";
 import { execArrowOrValue } from "../jogo/types.ts";
-import type { SalaBase, AcaoExtraPopulado, SalaBaseStatic } from "../jogo/salas/base.ts";
+import type { SalaBase, SalaBaseStatic } from "../jogo/salas/base.ts";
+import type { AcaoExtraPopulado } from "../jogo/objetoJogo.ts";
 
 export class SalaController extends ControllerBase {
     static descreverSalaAtual: RequestHandler = async (req, res) => {

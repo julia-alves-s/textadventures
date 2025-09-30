@@ -1,6 +1,7 @@
 import { Acao } from "../comandos/comandoConfig.ts";
 import type { Contexto } from "../contexto.ts";
-import type { AcaoExtraPopulado, AcoesCallbackResult } from "../salas/base.ts";
+import type { AcaoExtraPopulado, AcoesCallbackResult } from "../objetoJogo.ts";
+import type { MaybePromise } from "../types.ts";
 import { ItemBase } from "./base.ts";
 
 class Pedra extends ItemBase {
@@ -14,11 +15,17 @@ class Moedas extends ItemBase {
     descricao(ctx: Contexto) {
         return "Moedas antigas, parecem ser de ouro maciço.";
     }
+    obterPreco() {
+        return 1;
+    }
 }
 class Corda extends ItemBase {
     static nome = "Corda";
     descricao(ctx: Contexto) {
         return "Corda resistente, parece que aguenta bastante peso.";
+    }
+    obterPreco() {
+        return 5;
     }
 }
 class Chave extends ItemBase {
@@ -91,6 +98,10 @@ class Lampiao extends ItemBase {
 
         return acoes;
     }
+
+    obterPreco() {
+        return 10 + (Number(this.item.estado?.cargas) || 0) * 2;
+    }
 }
 class Papel extends ItemBase {
     static nome = "Papel";
@@ -132,17 +143,29 @@ class Papel extends ItemBase {
             }
         };
     }
+
+    obterPreco(): number {
+        return 2;
+    }
 }
 class Machado extends ItemBase {
     static nome = "Machado"
     descricao(ctx: Contexto) {
         return "Um machado afiado.";
     }
+
+    obterPreco() {
+        return 50;
+    }
 }
 class Tronco extends ItemBase {
     static nome = "Tronco Madeira"
     descricao(ctx: Contexto) {
         return "Tronco de madeira.";
+    }
+
+    obterPreco() {
+        return 5;
     }
 }
 
@@ -181,6 +204,21 @@ class Balde extends ItemBase {
 
         return acoes;
     }
+
+    obterPreco() {
+        return 2;
+    }
+}
+
+class Pa extends ItemBase {
+    static nome = "Pá";
+    descricao(ctx: Contexto) {
+        return "Uma pá, boa para cavar.";
+    }
+
+    obterPreco() {
+        return 40;
+    }
 }
 
 export const itensPadrao = {
@@ -192,5 +230,6 @@ export const itensPadrao = {
     Papel,
     Machado,
     Tronco,
-    Balde
+    Balde,
+    Pa
 };

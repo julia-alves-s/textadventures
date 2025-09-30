@@ -1,3 +1,5 @@
+import { Acao } from "../comandos/comandoConfig.ts";
+import { Abrivel, Vendedor } from "../componentes/componentes.ts";
 import type { Contexto } from "../contexto.ts";
 import { EntidadeArvore } from "../entidades/arvore.ts";
 import { EntidadeBase, type EntidadeInicial } from "../entidades/base.ts";
@@ -5,9 +7,10 @@ import { entidadesContainer } from "../entidades/container.ts";
 import { EntidadeNPC } from "../entidades/jogador.ts";
 import type { ItemBase } from "../itens/base.ts";
 import { itensPadrao } from "../itens/inicio.ts";
+import type { AcaoExtraPopulado, AcoesCallbackResult, ComponenteJogo } from "../objetoJogo.ts";
 import type { Estado } from "../types.ts";
-import { SalaBase, type AcaoExtraPopulado, type AcoesCallbackResult, type ItemInicial } from "./base.ts";
-import { entidadesInicio, PortaSaida, SalaInicio } from "./inicio.ts"; // Supondo que 'inicio.ts' exporta a classe 'Inicio'
+import { SalaBase, type ItemInicial } from "./base.ts";
+import { entidadesInicio, PortaSaida, SalaInicio, SalaPoco } from "./inicio.ts"; // Supondo que 'inicio.ts' exporta a classe 'Inicio'
 
 class EntidadePlaca extends EntidadeBase {
     static nome = "Placa";
@@ -30,13 +33,9 @@ export class BuracoNaParede extends SalaBase {
     static estadoInicial = () => ({ luz: true });
     static entidadesIniciais = (): EntidadeInicial[] => [{
         entidade: PortaSaida,
-        ref: { sala: SalaInicio, nome: "PortaSaida" }
+        ref: { sala: SalaInicio, nome: "Porta Saida" }
     },{
         entidade: entidadesContainer.Bau,
-    }];
-    static itensIniciais = (): ItemInicial[] => [{
-        item: itensPadrao.Balde,
-        quantidade: 1
     }];
     
     descricao(ctx: Contexto) {
@@ -47,7 +46,7 @@ export class BuracoNaParede extends SalaBase {
         return {
             "DESCER": () => {
                 const porta = this.obterEntidadePorNome(PortaSaida).at(0);
-                if(!porta?.estaAberto()) {
+                if(!porta?.obterComponente(Abrivel)?.estaAberto()) {
                     return "A Porta está fechada";
                 }
                 return SalaInicio;
@@ -88,6 +87,27 @@ class MargemDoRio extends SalaBase {
     }];
     static entidadesIniciais = (): EntidadeInicial[] => [{
         entidade: EntidadeArvore,
+    }, {
+        entidade: Comerciante,
+        itensIniciais: [{
+            item: itensPadrao.Papel,
+            quantidade: 200,
+            estadoInicial: { texto: "" }
+        }, {
+            item: itensPadrao.Lampiao,
+            quantidade: 10,
+            estadoInicial: { luz: false, cargas: 5 }
+        }, {
+            item: itensPadrao.Corda,
+            quantidade: 10,
+        }, {
+            item: itensPadrao.Balde,
+            quantidade: 10,
+            estadoInicial: { agua: true }
+        }, {
+            item: itensPadrao.Pa,
+            quantidade: 5,
+        }]
     }];
 
     descricao(ctx: Contexto) {
@@ -231,16 +251,77 @@ class Floresta2 extends SalaBase {
         const quantasArvores = this.obterEntidadePorNome(EntidadeArvore).filter(a => a.estaCrescida()).length;
         return {
             "N": () => {
+                ctx.escrevaln("Você anda mais um pouco a acaba andando em círculos...");
+                return Floresta1;  
+            },
+            "L": () => "A floresta é densa demais, não dá para passar.",
+            "O": () => "A floresta é densa demais, não dá para passar.",
+            "S": () => {
+                if(quantasArvores > 0) {
+                    return "A floresta é densa demais, não dá para passar. Talvez se você cortar algumas árvores...";
+                } else {
+                    ctx.escrevaln("Você consegue passar pela floresta, mas é difícil.");
+                    return Floresta3;
+                }                
+            },
+        };
+    }
+}
+
+class Floresta3 extends SalaBase {
+    static nome = "Floresta3"
+    static estadoInicial = () => ({ luz: false });
+    static entidadesIniciais = (): EntidadeInicial[] => [{
+        entidade: EntidadeArvore,
+    },{
+        entidade: EntidadeArvore,
+    },{
+        entidade: EntidadeArvore,
+    },{
+        entidade: EntidadeArvore,
+    }];
+
+    descricao(ctx: Contexto) {
+        return "Você está em uma densa floresta, as árvores são altas, ficou escuro de tão fechada que é a mata. No chão há um buraco entre as raízes, se cavar mais um pouco daria para passar.";
+    }
+
+    acoes(ctx: Contexto): AcoesCallbackResult {
+        const quantasArvores = this.obterEntidadePorNome(EntidadeArvore).filter(a => a.estaCrescida()).length;
+        return {
+            "N": () => {
                 if(quantasArvores > 0) {
                     return "A floresta é densa demais, não dá para passar. Talvez se você cortar algumas árvores...";
                 } else {
                     ctx.escrevaln("Você anda mais um pouco a acaba andando em círculos...");
-                    return Floresta1;
+                    return AreaLenhador;
                 }                
             },
             "L": () => "A floresta é densa demais, não dá para passar.",
             "O": () => "A floresta é densa demais, não dá para passar.",
             "S": () => "A floresta é densa demais, não dá para passar.",
+            "CAVAR": async () => {
+                const item = ctx.jogador.obterItensPorNome(itensPadrao.Pa).at(0);
+                if(!item) {
+                    return "Você precisa de uma pá para cavar.";
+                }
+                if(!item.estaNaMochila(ctx)) {
+                    return "Você não está com a pá.";
+                }
+                if(Math.random() < 0.5) {
+                    return "Você cava um pouco, e faz algum progresso, mas não encontra nada.";
+                }
+                if(Math.random() < 0.5) {
+                    return "Você cava um pouco, uma raiz te arranha, mas você não encontra nada.";
+                }
+                if(Math.random() < 0.5) {
+                    await ctx.criarItem({ item: itensPadrao.Pedra, quantidade: 1, onde: this});
+                    return "Você cava um pouco, e acaba encontrando uma pedra grande.";
+                }
+
+                ctx.escrevaln("Após tanto cavar, você acaba caindo no próprio buraco que cavou!");
+                ctx.escrevaln("Você vai escorregando por entre as raízes e pedras e cai bem dentro de um poço.");
+                return SalaPoco;
+            }
         };
     }
 }
@@ -262,9 +343,18 @@ class Lenhador extends EntidadeNPC {
         return `Sentado em um toco de árvore, um senhor de idade está descansando.${this.estaComSede() ? " Ele parece um pouco abatido" : ""}`;
     }
 
+    componentes(): ComponenteJogo<any>[] {
+        return [new Vendedor(this, {
+            estaAtivo: () => this.estaComSede() ? false : true
+        })];
+    }
+
+    filhosVisiveis(): boolean {
+        return this.estaComSede() ? false : true;
+    }
+
     acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): AcoesCallbackResult {
         const acoes: AcoesCallbackResult = {};
-        const troncosPossui = this.obterItensPorNome(itensPadrao.Tronco).at(0);
 
         if(this.estaComSede()) {
             acoes["OI"] = () => {
@@ -276,15 +366,19 @@ class Lenhador extends EntidadeNPC {
                     return "Ele não quer isso, só água.";
                 }
 
-                await ctx.moverItem(item, { onde: null, quantidade: 1 });
-                // Reseta o Nº de troncos
-                if(troncosPossui)
-                await ctx.moverItem(troncosPossui, { onde: null, quantidade: troncosPossui?.item.quantidade || 0 });
+                await ctx.moverItem(item, { onde: item.onde, estado: { agua: false }, quantidade: 1 });
                 await ctx.alterarEntidade(this, { estado: { tomouAguaEm: Date.now() } });
-                return "Você entrega a água para o lenhador. Ele bebe com gratidão e parece revigorado.";
+                ctx.escrevaln("Você entrega a água para o lenhador. Ele bebe com gratidão e parece revigorado. ");
+
+                if(!ctx.jogador.obterItensPorNome(itensPadrao.Machado).at(0)) {
+                    await ctx.criarItem({ item: itensPadrao.Machado, quantidade: 1, onde: this.onde});
+                    ctx.escrevaln("O lenhador diz: 'Aqui está, pegue este machado como agradecimento.'");
+                }
+
+                return "O lenhador deixa um machado fincado no tronco ao lado.";
             };
         } else {
-            const tronco = ctx.jogador.obterItensPorNome(itensPadrao.Tronco);
+            //const tronco = ctx.jogador.obterItensPorNome(itensPadrao.Tronco);
             acoes["OI"] = () => {
                 const sorteio = Math.floor(Math.random() * 10);
                 switch(sorteio) {
@@ -296,10 +390,11 @@ class Lenhador extends EntidadeNPC {
                     case 6: return "O lenhador diz: 'Nunca ande pela floresta sem um machado, pode ser que você precise cortar para abrir caminho.'";
                     case 7: return "O lenhador diz: 'Às vezes eu vejo um ladrão rondando pela estrada...'";
                     case 8: return "O lenhador diz: 'Oi.'";
+                    case 9: return "O lenhador diz: 'Sem a ponte a única comunicação é aquele comerciante no barco...'";
                     default: return "O lenhador não te responde.";
                 }
             };
-            if(tronco.length > 0) {
+            /*if(tronco.length > 0) {
                 acoes["VENDER"] = async () => {
                     const item = extra?.item || tronco.at(0);
                     if(!item || item.item.nome !== itensPadrao.Tronco.nome) {
@@ -308,10 +403,7 @@ class Lenhador extends EntidadeNPC {
                     if(!item.estaNaMochila(ctx)) {
                         return "Isso não está com você.";
                     }
-                    if(troncosPossui && troncosPossui.item.quantidade >= 50) {
-                        return "O lenhador já tem troncos demais, ele não pode comprar mais.";
-                    }
-
+                    
                     const quantidade = extra?.quantidade || item.item.quantidade;
                     if(quantidade > item.item.quantidade) {
                         return `Você só tem ${item.item.quantidade} tronco(s).`;
@@ -321,14 +413,14 @@ class Lenhador extends EntidadeNPC {
                     await ctx.criarItem({ item: itensPadrao.Moedas, quantidade: valor, onde: ctx.jogador });
                     return `Você entrega ${quantidade} tronco(s) para o lenhador. Ele lhe paga com ${valor} moedas.`;
                 };
-            }
+            }*/
         }
 
         return acoes;
     }
 
-    getFilhosVisiveis(): { itens: ItemBase[]; filhos: EntidadeBase[]; } {
-        return { itens: [], filhos: [] };
+    itensSeguros(): boolean {
+        return false;
     }
 }
 
@@ -346,11 +438,11 @@ class AreaLenhador extends SalaBase {
             cortadaEm: new Date("3000-01-01").getTime()
         }
     },{
-        entidade: Lenhador
-    }];
-    static itensIniciais = (): ItemInicial[] => [{
-        item: itensPadrao.Machado,
-        quantidade: 1
+        entidade: Lenhador,    
+        itensIniciais: [{
+            item: itensPadrao.Tronco,
+            quantidade: 1
+        }]
     }];
 
     descricao(ctx: Contexto) {
@@ -384,15 +476,17 @@ class Ladrao extends EntidadeNPC {
     });
 
     iraRoubar(username: string) {
-        const roubouEm = Number(this.entidade.estado?.roubouEm) || 0;
-
-        return Math.random() < 0.5 && // 50% de chance
-        (username !== this.entidade.estado?.roubouDe || (Date.now() - roubouEm) > 1000 * 60 * 60) && // Não roubou dessa pessoa na última hora
-        (Date.now() - roubouEm) > 1000 * 60 * 5; // passou já 5 minutos desde a última vez que roubou (qualquer um)
+        if(this.estaVisivel() === false) return false;
+        return Math.random() < 0.5; // 50% de chance
     }
 
     descricao(ctx: Contexto) {
         return "Um ladrão suspeito está rondando a área, parecendo procurar por algo para roubar.";
+    }
+
+    estaVisivel(): boolean {
+        const roubouEm = Number(this.entidade.estado?.roubouEm) || 0;
+        return (Date.now() - roubouEm) > 1000 * 60 * 5; // Volta a aparecer depois de 5 minutos
     }
 
     acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): AcoesCallbackResult {
@@ -404,7 +498,6 @@ class Ladrao extends EntidadeNPC {
                 const proximoDestino = possiveisDestinos.at(Math.floor(Math.random() * possiveisDestinos.length)) || Estrada;
 
                 if(!this.iraRoubar(ctx.jogador.entidade.username!)) {
-                    ctx.escrevaln("O ladrão foi embora.");
                     await ctx.alterarEntidade(this, { 
                         onde: proximoDestino
                     });
@@ -445,9 +538,54 @@ class Ladrao extends EntidadeNPC {
             }
         };
     }
+}
 
-    getFilhosVisiveis(): { itens: ItemBase[]; filhos: EntidadeBase[]; } {
-        return { itens: [], filhos: [] };
+
+class Comerciante extends EntidadeNPC {
+    static nome = "Comerciante";
+    static estadoInicial = (): Estado => ({ 
+        saiuEm: null,
+    });
+
+    componentes(): ComponenteJogo<any>[] {
+        return [new Vendedor(this)];
+    }
+
+    descricao(ctx: Contexto) {
+        return "Um comerciante está em seu barco, navegando lentamente pelo rio.";
+    }
+
+    acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): AcoesCallbackResult {
+        const acoes: AcoesCallbackResult = {};
+        acoes[Acao.$AcaoAntes] = async () => {
+            if(!this.estaVisivel()) return;
+
+            if(Math.random() < 0.05) { // 5% de chance de ir embora
+                ctx.escrevaln("O comerciante diz: 'Hora de seguir viagem, até mais!' e parte rio abaixo.");
+                await ctx.alterarEntidade(this, { onde: (this.onde as SalaBase)?.sala.nome === MargemDoRio.nome ? EstradaNorte : MargemDoRio, estado: { saiuEm: Date.now() } });
+                return;
+            }
+        };
+        acoes["OI"] = () => {
+            return "O comerciante acena para você e pergunta se você gostaria de comprar algo.";
+        };
+
+        return acoes;
+    }
+
+    filhosVisiveis(): boolean {
+        return true;
+    }
+
+    itensSeguros(): boolean {
+        return false;
+    }
+
+    estaVisivel(): boolean {
+        if(this.entidade.estado?.saiuEm === null) return true;
+
+        const saiuEm = Number(this.entidade.estado?.saiuEm) || 0;
+        return (Date.now() - saiuEm) > 1000 * 60 * 10; // Volta a aparecer depois de 10 minutos
     }
 }
 
@@ -462,10 +600,12 @@ export const salasClareira = {
     AreaLenhador,
     Floresta1,
     Floresta2,
+    Floresta3
 };
 
 export const entidadesClareira = {
     EntidadePlaca,
     Lenhador,
-    Ladrao
+    Ladrao,
+    Comerciante
 };

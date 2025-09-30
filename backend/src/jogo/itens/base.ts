@@ -1,8 +1,9 @@
 import type { Item } from "../../db/itemSchema.ts";
-import { Acao } from "../comandos/comandoConfig.ts";
+import { Vendedor } from "../componentes/componentes.ts";
 import type { Contexto } from "../contexto.ts";
 import { EntidadeBase } from "../entidades/base.ts";
-import { SalaBase, type AcaoExtraPopulado, type AcoesCallbackResult } from "../salas/base.ts";
+import { ObjetoJogo, type AcaoExtraPopulado, type AcoesCallbackResult } from "../objetoJogo.ts";
+import { SalaBase } from "../salas/base.ts";
 import type { Estado, MaybePromise } from "../types.ts";
 
 export interface ItemBaseStatic {
@@ -10,14 +11,7 @@ export interface ItemBaseStatic {
     estadoInicial?: () => Estado;
 }
 
-export abstract class ItemBase {    
-    descricao(ctx: Contexto): MaybePromise<string | void> {
-        return;
-    }
-    acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): MaybePromise<AcoesCallbackResult> {
-        return {};
-    }
-
+export abstract class ItemBase extends ObjetoJogo {
     async _acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): Promise<AcoesCallbackResult> {
         const acoes: AcoesCallbackResult = {};
 
@@ -30,25 +24,37 @@ export abstract class ItemBase {
                 return "Largou.";
             };
         } else {
-            acoes["PEGAR"] = async () => {
-                await ctx.moverItem(this, { 
-                    quantidade: extra?.quantidade || this.item.quantidade,
-                    onde: ctx.jogador
-                });
-                return "Pegou.";
-            };
+            if(this.onde.possuiComponente(Vendedor)) {
+                const vendedor = this.onde.obterComponente(Vendedor);
+                if(!vendedor.config?.estaAtivo || (await vendedor.config.estaAtivo(ctx, extra) === true)) {
+                    acoes["COMPRAR"] = async () => {
+                        return await vendedor.comprar(ctx, { item: this, quantidade: extra?.quantidade });
+                    };
+                    acoes["VENDER"] = async () => {
+                        return await vendedor.vender(ctx, { item: this, quantidade: extra?.quantidade });
+                    };
+                }
+            } else {
+                acoes["PEGAR"] = async () => {
+                    await ctx.moverItem(this, { 
+                        quantidade: extra?.quantidade || this.item.quantidade,
+                        onde: ctx.jogador
+                    });
+                    return "Pegou.";
+                };
+            }
         }
 
         return {
-            [Acao.$Descricao]: async () => await this.descricao(ctx),
             ...acoes,
-            ...(await this.acoes(ctx, extra))
+            ...(await super._acoes(ctx, extra)),
         };
     }
 
     item: Item;
     onde: SalaBase | EntidadeBase;
     constructor(info: {item: Item, onde: SalaBase | EntidadeBase}) {
+        super();
         this.item = info.item;
         this.onde = info.onde;
     }
@@ -64,5 +70,9 @@ export abstract class ItemBase {
 
     estaVisivel() {
         return true;
+    }
+
+    obterPreco() {
+        return 0;
     }
 }

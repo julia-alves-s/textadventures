@@ -1,11 +1,13 @@
+import { Abrivel, Trancavel } from "../componentes/componentes.ts";
 import { Contexto } from "../contexto.ts";
 import { EntidadeBase, type EntidadeInicial } from "../entidades/base.ts";
 import { entidadesContainer } from "../entidades/container.ts";
 import { EntidadePorta } from "../entidades/porta.ts";
 import type { ItemBase } from "../itens/base.ts";
 import { itensPadrao } from "../itens/inicio.ts";
+import type { AcoesCallbackResult, ComponenteJogo } from "../objetoJogo.ts";
 import type { Estado, MaybePromise } from "../types.ts";
-import { SalaBase, type AcaoExtraPopulado, type AcoesCallbackResult, type ItemInicial } from "./base.ts";
+import { SalaBase, type ItemInicial } from "./base.ts";
 import { BuracoNaParede } from "./clareira.ts";
 
 class Quarto extends SalaBase {
@@ -54,40 +56,38 @@ class Quarto extends SalaBase {
 }
 
 
-export class PortaSaida extends EntidadePorta {
+export class PortaSaida extends EntidadeBase {
     static nome = "Porta Saida";
+    static estadoInicial = (): Estado => ({ aberto: false, trancado: true });
 
-    acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): AcoesCallbackResult {
-        if(this.estaAberto()) {
-            return {};
+    descricao(ctx: Contexto): MaybePromise<string | void> {
+        if(this.obterComponente(Abrivel).estaAberto()) {
+            return "Uma porta aberta";
         } else {
-            return {
-                "DESTRANCAR": async () => this.abrir(ctx, extra),
-            };
+            return "Uma porta fechada, talvez você possa abri-la.";
         }
     }
 
-    async abrir(ctx: Contexto, extra?: AcaoExtraPopulado | null) {
-        if(this.ehReferencia) {
-            await ctx.alterarEntidade(this, { estado: { aberto: true }});
-            return "Você abre a porta, do lado de fora é fácil destrancar";
-        }
-        
-        const chave = extra?.item || ctx.jogador.obterItensPorNome(itensPadrao.Chave).at(0);
-        if(!chave) {
-            return "A porta está trancada, você precisa de uma chave para abri-la.";
-        }
-        const chaveCerta = chave.item.nome === itensPadrao.Chave.nome && chave.item.estado?.abre === "Porta Saida";
-        if(!chaveCerta) {
-            return "Você não consegue destrancar a porta.";
-        }
-        
-        await ctx.alterarEntidade(this, { estado: { aberto: true }});
-        return "Você destranca a porta com a chave e abre ela.";
-    }
-    async fechar(ctx: Contexto, extra?: AcaoExtraPopulado | null) {
-        await ctx.alterarEntidade(this, { estado: { aberto: false }});
-        return "Você fecha a porta, parece que ela trancou sozinha.";
+    componentes(): ComponenteJogo<any>[] {
+        return [
+            new Abrivel(this, {
+                // Só dá para abrir/fechar uma porta destrancada
+                aoAbrir: async (ctx) => { 
+                    if(this.obterComponente(Trancavel).estaTrancado()) {
+                        ctx.escrevaln("Você não consegue abrir a porta porque ela está trancada."); 
+                        return false;
+                    } else {
+                        ctx.escrevaln("Você abre a porta."); 
+                        return true;
+                    }
+                },
+                aoFechar: async (ctx) => { ctx.escrevaln("Você fecha a porta."); return true },
+            }),
+            new Trancavel(this, {
+                // Só dá para trancar/destrancar uma porta fechada
+                estaAtivo: async (ctx) => { return !this.obterComponente(Abrivel).estaAberto(); },
+            })
+        ];
     }
 }
 
@@ -101,10 +101,7 @@ export class SalaInicio extends SalaBase {
         }
     }];
     static entidadesIniciais = (): EntidadeInicial[] => [{
-        entidade: PortaSaida,
-        estadoInicial: {
-            aberto: false
-        }
+        entidade: PortaSaida
     }];
     static estadoInicial = (): Estado => ({ luz: true });
 
@@ -117,10 +114,10 @@ export class SalaInicio extends SalaBase {
             "N": Quarto,
             "O": async () => {
                 const porta = this.obterEntidadePorNome(PortaSaida).at(0);
-                if(!porta?.estaAberto()) {
+                if(!porta?.obterComponente(Abrivel).estaAberto()) {
                     return "A Porta está fechada";
                 }
-                await ctx.alterarEntidade(porta, { estado: { aberto: false }});
+                await ctx.alterarEntidade(porta, { estado: { aberto: false, trancado: true }});
                 await ctx.moverParaSala(BuracoNaParede);
                 return "Você passa pela porta e um vento forte faz ela se fechar atrás de você. Parece que a porta trancou sozinha. \n Você sobre os degraus...";
             },
@@ -238,12 +235,8 @@ class EntidadePoco extends EntidadeBase {
         }
     }
 
-    getFilhosVisiveis(): { itens: ItemBase[]; filhos: EntidadeBase[]; } {
-        if(!this.ehReferencia) { 
-            return super.getFilhosVisiveis();
-        } else {
-            return { itens: [], filhos: [] };
-        }
+    filhosVisiveis(): boolean {
+        return !this.ehReferencia;
     }
 }
 
@@ -270,7 +263,7 @@ class Labirinto3 extends Labirinto {
     }
 }
 
-class SalaPoco extends SalaBase {
+export class SalaPoco extends SalaBase {
     static nome = "Poco";
     static estadoInicial = (): Estado => ({ luz: false });
     static itensIniciais = (): ItemInicial[] => [{ 

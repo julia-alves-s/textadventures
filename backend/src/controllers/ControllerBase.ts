@@ -3,8 +3,6 @@ import type z from "zod";
 import { Contexto } from "../jogo/contexto.ts";
 import type { User } from "../db/userSchema.ts";
 import { parseRequest, type ControllerSchema, type ParsedRequest, type ParsedRequestUndef } from "../utils/docs.ts";
-import { SalaRepository } from "../repositories/salaRepository.ts";
-import { db } from "../db/drizzle.ts";
 import { RevokeSessionError } from "../middlewares/authMiddleware.ts";
 
 export class ControllerBase {

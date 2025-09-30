@@ -1,5 +1,6 @@
+import { Abrivel, Armazenavel } from "../componentes/componentes.ts";
 import type { Contexto } from "../contexto.ts";
-import type { AcaoExtraPopulado, AcoesCallbackResult } from "../salas/base.ts";
+import { ComponenteJogo } from "../objetoJogo.ts";
 import type { Estado, MaybePromise } from "../types.ts";
 import { EntidadeBase } from "./base.ts";
 
@@ -8,59 +9,28 @@ class Bau extends EntidadeBase {
     static estadoInicial = (): Estado => ({ aberto: false });
 
     descricao(ctx: Contexto): MaybePromise<string | void> {
-        if(this.entidade.estado?.aberto) {
+        if(this.obterComponente(Abrivel).estaAberto()) {
             return "Um baú aberto";
         } else {
             return "Um baú fechado, talvez você possa abri-lo.";
         }
     }
 
-    async _acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): Promise<AcoesCallbackResult> {
-        if(this.estaAberto()) {
-            return {
-                "FECHAR": async () => this.fechar(ctx),
-                "COLOCAR": async () => {
-                    const item = extra?.item;
-                    if(!item) {
-                        return "Deve especificar o que quer colocar no baú.";
-                    }
-                    if(!(item.onde instanceof EntidadeBase && item.onde.entidade.id === ctx.jogador.entidade.id)) {
-                        return "Você não tem esse item.";
-                    }
-                    await ctx.moverItem(item, { 
-                        quantidade: extra?.quantidade || item.item.quantidade,
-                        onde: this
-                    });
-                    return "Colocou no baú.";
-                },
-                ...(await super._acoes(ctx, extra)),
-            };
-        } else {
-            return {
-                "ABRIR": async () => this.abrir(ctx),
-                ...(await super._acoes(ctx, extra)),
-            };
-        }
+    componentes(): ComponenteJogo<any>[] {
+        return [
+            new Abrivel(this, {
+                aoAbrir: async (ctx) => { ctx.escrevaln("Você abre o baú."); return true },
+                aoFechar: async (ctx) => { ctx.escrevaln("Você fecha o baú."); return true },
+            }),
+            new Armazenavel(this, {
+                aoColocar: async (ctx) => { ctx.escrevaln("Colocou no baú"); return true; },
+                estaAtivo: async (ctx) => { return this.obterComponente(Abrivel).estaAberto() },
+            })
+        ];
     }
 
-    estaAberto() {
-        return this.entidade.estado?.aberto === true;
-    }
-    async abrir(ctx: Contexto) {
-        await ctx.alterarEntidade(this, { estado: { aberto: true }});
-        return "Você abre o baú.";
-    }
-    async fechar(ctx: Contexto) {
-        await ctx.alterarEntidade(this, { estado: { aberto: false }});
-        return "Você fecha o baú.";
-    }
-
-    getFilhosVisiveis() {
-        if(this.entidade.estado?.aberto) {
-            return super.getFilhosVisiveis();
-        } else {
-            return { itens: [], filhos: [] };
-        }
+    filhosVisiveis(): boolean {
+        return this.obterComponente(Abrivel).estaAberto();
     }
     
     itensSeguros() {

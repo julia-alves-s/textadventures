@@ -1,10 +1,10 @@
 import type { Sala } from "../../db/salaSchema.ts";
-import type { AcaoExtra } from "../../docs/schemas.ts";
-import { Acao, type AcaoValue } from "../comandos/comandoConfig.ts";
+import { Armazenavel } from "../componentes/componentes.ts";
 import type { Contexto } from "../contexto.ts";
 import type { EntidadeBase, EntidadeBaseStatic, EntidadeInicial } from "../entidades/base.ts";
 import type { ItemBase, ItemBaseStatic } from "../itens/base.ts";
-import type { ArrowOrValue, Estado, MaybePromise } from "../types.ts";
+import { ObjetoJogo } from "../objetoJogo.ts";
+import type { Estado } from "../types.ts";
 
 export type ItemInicial = {
     item: typeof ItemBase & ItemBaseStatic;
@@ -19,34 +19,13 @@ export interface SalaBaseStatic {
     estadoInicial?: () => Estado;
 }
 
-export type AcoesCallbackResult = {
-    [acao in AcaoValue]?: ArrowOrValue<typeof SalaBase & SalaBaseStatic | string | void>;
-};
-
-export type AcaoExtraPopulado = Omit<AcaoExtra, "item" | "entidade"> & {
-    item?: ItemBase;
-    entidade?: EntidadeBase;
-};
-
-export abstract class SalaBase {    
-    descricao(ctx: Contexto): MaybePromise<string | void> {
-        return;
-    }
-    acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): MaybePromise<AcoesCallbackResult> {
-        return {};
-    }
-    async _acoes(ctx: Contexto, extra?: AcaoExtraPopulado | null): Promise<AcoesCallbackResult> {
-        return {
-            [Acao.$Descricao]: async () => await this.descricao(ctx),
-            ...(await this.acoes(ctx, extra))
-        };
-    }
-
+export abstract class SalaBase extends ObjetoJogo {
     sala: Sala;
     itens: ItemBase[];
     entidades: EntidadeBase[];
 
     constructor(info: {sala: Sala, itens?: ItemBase[], entidades?: EntidadeBase[]}) {
+        super();
         this.sala = info.sala;
         this.itens = info.itens || [];
         this.entidades = info.entidades || [];
@@ -78,11 +57,22 @@ export abstract class SalaBase {
         return this.temLuz();
     }
 
-    getFilhosVisiveis() {
+    /*getFilhosVisiveis() {
         return {
             itens: this.itens.filter(i => i.estaVisivel()),
             entidades: this.entidades.filter(e => e.estaVisivel())
         };
+    }*/
+
+    filhosVisiveis(): boolean {
+        return true;
+    }
+
+    obterFilhos(): ObjetoJogo[] {
+        return [
+            ...this.itens,
+            ...this.entidades
+        ];
     }
 };
 
